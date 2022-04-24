@@ -1,12 +1,7 @@
-import CodeEditor from "@uiw/react-textarea-code-editor";
-import { MouseEvent, useCallback, useEffect, useRef, useState } from "react";
-
-type SimulationParams = {
-  yPos: number;
-  yMaxPos: number;
-  isFiring: boolean;
-  isExploded: boolean;
-};
+import { useCallback, useEffect, useState } from "react";
+import { Editor } from "./Editor";
+import { getSandboxedFunction } from "./sandbox";
+import { Simulation } from "./Simulation";
 
 const TICK_PER_SECOND = 1000;
 const SECOND_LIMIT = 60;
@@ -22,164 +17,24 @@ const FRAME_PER_SECOND = 60;
 
 const TICK_PER_FRAME = TICK_PER_SECOND / FRAME_PER_SECOND;
 
-const getAsciiBox = ({
-  yPos,
-  yMaxPos,
-  isFiring,
-  isExploded,
-}: SimulationParams) => {
-  const internalWidth = 11;
-  const internalHeight = 21;
-
-  const rocketPos =
-    internalHeight - Math.ceil((yPos / yMaxPos) * (internalHeight - 1)) - 1;
-
-  let asciiString = ``;
-
-  asciiString += "┌";
-  asciiString += "─".repeat(internalWidth);
-  asciiString += "┐\n";
-
-  for (let i = 0; i < internalHeight; i += 1) {
-    asciiString += "│";
-    asciiString += " ".repeat(Math.floor((internalWidth - 1) / 2));
-
-    if (i === rocketPos) {
-      asciiString += isExploded ? "🔥" : "🚀";
-    } else if (i === rocketPos + 1 && isFiring) {
-      asciiString += "🔥";
-    } else {
-      asciiString += "  ";
-    }
-
-    asciiString += " ".repeat(Math.ceil((internalWidth - 1) / 2) - 1);
-    asciiString += "│";
-
-    const markerFrequency = Math.floor((internalHeight - 1) / 5);
-    if (i % markerFrequency === 0) {
-      asciiString += ` ${100 - (i / markerFrequency) * 20}m`.padStart(5, " "); // INITAL_Y_POS
-    }
-
-    asciiString += "\n";
-  }
-
-  asciiString += "└";
-  asciiString += "─".repeat(internalWidth);
-  asciiString += "┘";
-
-  return asciiString;
-};
-
-const Simulation = ({
-  yPos,
-  yMaxPos,
-  isFiring,
-  isExploded,
-}: SimulationParams) => {
-  return (
-    <div>
-      <pre>
-        {getAsciiBox({
-          yPos,
-          yMaxPos,
-          isFiring,
-          isExploded,
-        })}
-      </pre>
-    </div>
-  );
-};
-
-const preamble = `\
+export const preamble = `\
 /**
  * time: in milliseconds, integer, non-negative
  * velo: in meters per second, floating point
  * posn: in meters, floating point, non-negative
  *
- * GRAVITY_ACCEL: in meters per second squared, -9.8 within sample simulation
+ * GRAVITY_ACCEL: in meters per second squared, ${GRAVITY_ACCEL} within sample simulation
  * THRUST_ACCEL: in meters per second squared, ${THRUST_ACCEL.toFixed(
    2
  )} within sample simulation
  */
 function shouldFireBooster({time, velo, posn}, {GRAVITY_ACCEL, THRUST_ACCEL}) {`;
-const Editor = ({
-  code,
-  setCode,
-}: {
-  code: string;
-  setCode: (code: string) => void;
-}) => {
-  const editorRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const handleClick = useCallback((e: MouseEvent) => {
-    if (e.defaultPrevented) return;
-    editorRef.current?.focus();
-    editorRef.current?.setSelectionRange(
-      editorRef.current?.value.length,
-      editorRef.current?.value.length
-    );
-  }, []);
-
-  return (
-    <div
-      className="w-full p-2 flex-grow bg-gray-100 dark:bg-slate-800"
-      onClick={handleClick}
-    >
-      <CodeEditor
-        value={preamble}
-        language="js"
-        onChange={(evn) => setCode(evn.target.value)}
-        padding={0}
-        // style={{
-        //   fontSize: 12,
-        //   backgroundColor: "rgb(30, 41, 59)",
-        //   fontFamily:
-        //     "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
-        // }}
-        disabled
-      />
-      <CodeEditor
-        value={code}
-        language="js"
-        onChange={(evn) => setCode(evn.target.value)}
-        padding={0}
-        // style={{
-        //   fontSize: 12,
-        //   backgroundColor: "rgb(30, 41, 59)",
-        //   fontFamily:
-        //     "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
-        // }}
-        ref={editorRef}
-        onClick={(e) => {
-          e.preventDefault();
-        }}
-      />
-      <CodeEditor
-        value={"}"}
-        language="js"
-        onChange={(evn) => setCode(evn.target.value)}
-        padding={0}
-        // style={{
-        //   fontSize: 12,
-        //   backgroundColor: "rgb(30, 41, 59)",
-        //   fontFamily:
-        //     "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
-        // }}
-        disabled
-      />
-    </div>
-  );
-};
-
-function getShouldFireBooster(obj: string) {
-  /* eslint-disable no-new-func */
-  return Function('"use strict";return (' + obj + ")")();
-  /* eslint-enable no-new-func */
-}
+const startingCode = `  return false;`;
+export const postamble = "}";
 
 export const Level0 = () => {
   const [code, setCode] = useState(
-    localStorage.getItem("level0-shouldFireBooster") ?? `  return false;`
+    localStorage.getItem("level0-shouldFireBooster") ?? startingCode
   );
   const [yPos, setYPos] = useState(INITAL_Y_POS);
   const [isFiring, setIsFiring] = useState(false);
@@ -200,14 +55,19 @@ export const Level0 = () => {
       handleReset();
     }
 
-    let posn = 100;
+    let posn = INITAL_Y_POS;
     let velo = 0;
     let tick = 0;
     let fireCount = 0;
     let frameTickCount = 0;
     let frameCount = 0;
 
-    const shouldFireBooster = getShouldFireBooster(`${preamble}\n${code}\n}`);
+    const shouldFireBooster = getSandboxedFunction<
+      (
+        args: { time: number; velo: number; posn: number },
+        constants: { GRAVITY_ACCEL: number; THRUST_ACCEL: number }
+      ) => unknown
+    >(`${preamble}\n${code}\n${postamble}`);
 
     const simulateOneTick = () => {
       velo += GRAVITY_ACCEL / TICK_PER_SECOND;
