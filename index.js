@@ -9,14 +9,18 @@ const THRUST_ACCEL = 30; //
 const shouldFireBooster = ({velocity: velo, position: posn}) => {
 
 
+    //return velo + posn + 1 < 0;
 
-    const netAccel = THRUST_ACCEL + GRAVITY_ACCEL;
-    const h1 = Math.abs(velo);
-    const h2 = Math.abs(-1.7);
-    const area = posn + 0.01; // = (b*(h1-h2))/2 + b* h2
-    const neededTime = (2*area) / (h1 + h2)
-    const neededAccel = (h1 - h2)/neededTime;
-    return neededAccel >= netAccel;
+    //return Math.random() * (100 - posn) / 100 > Math.PI / 10;
+
+    const availableAccel = THRUST_ACCEL + GRAVITY_ACCEL;
+    const targetVelo = -1.98;
+    const extrapolatedPosn = posn + ((velo / 1000) / 2);
+
+    const neededTimeMid = (2 * extrapolatedPosn) / Math.abs(velo + targetVelo);
+    const neededAccel = (targetVelo - velo) / neededTimeMid;
+
+    return neededAccel >= availableAccel;
     // const area = position; // = (b * h) / 2
     // const neededTime = (2*area)/h1;
     // const neededAccel = h1/neededTime;

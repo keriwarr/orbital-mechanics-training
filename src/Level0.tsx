@@ -8,6 +8,20 @@ type SimulationParams = {
   isExploded: boolean;
 };
 
+const TICK_PER_SECOND = 1000;
+const SECOND_LIMIT = 60;
+const TICK_LIMIT = TICK_PER_SECOND * SECOND_LIMIT;
+const LANDING_SPEED_THRESHOLD = 2;
+
+const GRAVITY_ACCEL = -9.81;
+const THRUST_ACCEL = -1 * GRAVITY_ACCEL + 1337 / SECOND_LIMIT;
+
+const INITAL_Y_POS = 100;
+
+const FRAME_PER_SECOND = 60;
+
+const TICK_PER_FRAME = TICK_PER_SECOND / FRAME_PER_SECOND;
+
 const getAsciiBox = ({
   yPos,
   yMaxPos,
@@ -83,7 +97,9 @@ const preamble = `\
  * posn: in meters, floating point, non-negative
  *
  * GRAVITY_ACCEL: in meters per second squared, -9.8 within sample simulation
- * THRUST_ACCEL: in meters per second squared, 30 within sample simulation
+ * THRUST_ACCEL: in meters per second squared, ${THRUST_ACCEL.toFixed(
+   2
+ )} within sample simulation
  */
 function shouldFireBooster({time, velo, posn}, {GRAVITY_ACCEL, THRUST_ACCEL}) {`;
 const Editor = ({
@@ -105,18 +121,21 @@ const Editor = ({
   }, []);
 
   return (
-    <div className="w-full p-2 bg-slate-800 flex-grow" onClick={handleClick}>
+    <div
+      className="w-full p-2 flex-grow bg-gray-100 dark:bg-slate-800"
+      onClick={handleClick}
+    >
       <CodeEditor
         value={preamble}
         language="js"
         onChange={(evn) => setCode(evn.target.value)}
         padding={0}
-        style={{
-          fontSize: 12,
-          backgroundColor: "rgb(30, 41, 59)",
-          fontFamily:
-            "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
-        }}
+        // style={{
+        //   fontSize: 12,
+        //   backgroundColor: "rgb(30, 41, 59)",
+        //   fontFamily:
+        //     "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
+        // }}
         disabled
       />
       <CodeEditor
@@ -124,12 +143,12 @@ const Editor = ({
         language="js"
         onChange={(evn) => setCode(evn.target.value)}
         padding={0}
-        style={{
-          fontSize: 12,
-          backgroundColor: "rgb(30, 41, 59)",
-          fontFamily:
-            "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
-        }}
+        // style={{
+        //   fontSize: 12,
+        //   backgroundColor: "rgb(30, 41, 59)",
+        //   fontFamily:
+        //     "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
+        // }}
         ref={editorRef}
         onClick={(e) => {
           e.preventDefault();
@@ -140,31 +159,17 @@ const Editor = ({
         language="js"
         onChange={(evn) => setCode(evn.target.value)}
         padding={0}
-        style={{
-          fontSize: 12,
-          backgroundColor: "rgb(30, 41, 59)",
-          fontFamily:
-            "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
-        }}
+        // style={{
+        //   fontSize: 12,
+        //   backgroundColor: "rgb(30, 41, 59)",
+        //   fontFamily:
+        //     "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
+        // }}
         disabled
       />
     </div>
   );
 };
-
-const GRAVITY_ACCEL = -9.8;
-const THRUST_ACCEL = 30;
-
-const TICK_PER_SECOND = 1000;
-const SECOND_LIMIT = 60;
-const TICK_LIMIT = TICK_PER_SECOND * SECOND_LIMIT;
-const LANDING_SPEED_THRESHOLD = 2;
-
-const INITAL_Y_POS = 100;
-
-const FRAME_PER_SECOND = 60;
-
-const TICK_PER_FRAME = TICK_PER_SECOND / FRAME_PER_SECOND;
 
 function getShouldFireBooster(obj: string) {
   /* eslint-disable no-new-func */

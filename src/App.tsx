@@ -11,7 +11,7 @@ function App() {
   const [stage, setStage] = useState(STAGE.INTRO);
 
   return (
-    <div className="p-8 font-mono">
+    <div className="p-8 font-mono h-screen w-screen dark:bg-slate-900 dark:text-slate-200">
       <h1 className="text-3xl font-bold mb-4">
         Morgan-Wei IPLG: Orbital Mechanics Training
       </h1>
