@@ -12,7 +12,9 @@ function App() {
 
   return (
     <div className="p-8 font-mono">
-      <h1 className="text-3xl font-bold mb-4">Mike</h1>
+      <h1 className="text-3xl font-bold mb-4">
+        Morgan-Wei IPLG: Orbital Mechanics Training
+      </h1>
       {stage === STAGE.INTRO && (
         <>
           <Intro />

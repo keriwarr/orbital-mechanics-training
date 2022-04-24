@@ -3,10 +3,10 @@ export const Intro = () => (
     <p className="text-base max-w-prose mb-4">
       Hello and welcome to your first week of training at{" "}
       <span className="font-bold underline">
-        Morg-Wei Interplanetary Logistics Group
+        Morgan-Wei Interplanetary Logistics Group
       </span>
       . As a Junior Orbital Mechanics Specialist, your role will be to ensure
-      that Morg-Wei Shipping Barges land safe and sound, and most importantly,{" "}
+      that Morgan-Wei Shipping Barges land safe and sound, and most importantly,{" "}
       <span className="font-bold">on time</span>.
     </p>
     <p className="text-base max-w-prose mb-4">
@@ -26,12 +26,12 @@ export const Intro = () => (
       situations, to ensure that you didn't attempt to overfit.
     </p>
     <p className="text-base max-w-prose mb-4">
-      Getting into the details: you will write code which controls whether the
-      engine should fire, given the{" "}
-      <span className="font-bold">time, position, and velocity</span> of the
-      barge, and your objective is to pilot the craft to touch down with a speed
-      no greater than one meter per second, in as little total time as possible.
-      Easy, right?
+      Getting into the details: you will write JavaScript which controls whether
+      the engine should fire, given the{" "}
+      <span className="font-bold">time, and the position and velocity</span> of
+      the barge. Your objective is to pilot the craft to touch down with a speed
+      no greater than two meters per second, in as little total time as
+      possible. Easy, right?
     </p>
     <p className="text-base max-w-prose mb-4">
       You'll do fine. Get cracking, and remember, no funny business with that

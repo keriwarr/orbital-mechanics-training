@@ -1,5 +1,5 @@
 import CodeEditor from "@uiw/react-textarea-code-editor";
-import { useCallback, useRef, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useRef, useState } from "react";
 
 type SimulationParams = {
   yPos: number;
@@ -95,7 +95,8 @@ const Editor = ({
 }) => {
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((e: MouseEvent) => {
+    if (e.defaultPrevented) return;
     editorRef.current?.focus();
     editorRef.current?.setSelectionRange(
       editorRef.current?.value.length,
@@ -104,10 +105,7 @@ const Editor = ({
   }, []);
 
   return (
-    <div
-      className="ml-8 w-full p-2 bg-slate-800 flex-grow"
-      onClick={handleClick}
-    >
+    <div className="w-full p-2 bg-slate-800 flex-grow" onClick={handleClick}>
       <CodeEditor
         value={preamble}
         language="js"
@@ -133,6 +131,9 @@ const Editor = ({
             "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
         }}
         ref={editorRef}
+        onClick={(e) => {
+          e.preventDefault();
+        }}
       />
       <CodeEditor
         value={"}"}
@@ -172,20 +173,27 @@ function getShouldFireBooster(obj: string) {
 }
 
 export const Level0 = () => {
-  const [code, setCode] = useState(`  return false;`);
+  const [code, setCode] = useState(
+    localStorage.getItem("level0-shouldFireBooster") ?? `  return false;`
+  );
   const [yPos, setYPos] = useState(INITAL_Y_POS);
   const [isFiring, setIsFiring] = useState(false);
   const [result, setResult] = useState<
     "success" | "failure" | "timeout" | null
   >(null);
   const [resultTime, setResultTime] = useState<number | null>(null);
+  const [resultSpeed, setResultSpeed] = useState<number | null>(null);
   const yMaxPos = INITAL_Y_POS;
+  const [handleReset, setHandleReset] = useState<(() => void) | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem("level0-shouldFireBooster", code);
+  }, [code]);
 
   const runSimuation = useCallback(() => {
-    setYPos(INITAL_Y_POS);
-    setIsFiring(false);
-    setResult(null);
-    setResultTime(null);
+    if (handleReset) {
+      handleReset();
+    }
 
     let posn = 100;
     let velo = 0;
@@ -225,11 +233,12 @@ export const Level0 = () => {
         simulateOneTick();
       }
 
-      frameTickCount = 0;
-      frameCount += 1;
-
       setYPos(posn);
       setIsFiring(fireCount / frameTickCount > 0.5);
+
+      frameTickCount = 0;
+      frameCount += 1;
+      fireCount = 0;
     };
 
     let intervalHandle: any;
@@ -239,6 +248,8 @@ export const Level0 = () => {
 
       if (tick >= TICK_LIMIT) {
         setResult("timeout");
+        setResultTime(tick / TICK_PER_SECOND);
+        setResultSpeed(Math.abs(velo));
         clearInterval(intervalHandle);
         return;
       }
@@ -253,14 +264,24 @@ export const Level0 = () => {
         } else {
           setResult("failure");
         }
-        setResultTime(tick);
+        setResultTime(tick / TICK_PER_SECOND);
+        setResultSpeed(Math.abs(velo));
         clearInterval(intervalHandle);
         return;
       }
     };
 
     intervalHandle = setInterval(handleInterval, 1000 / FRAME_PER_SECOND);
-  }, [code]);
+
+    setHandleReset(() => () => {
+      setYPos(INITAL_Y_POS);
+      setIsFiring(false);
+      setResult(null);
+      setResultTime(null);
+      setResultSpeed(null);
+      clearInterval(intervalHandle);
+    });
+  }, [code, handleReset]);
 
   const submitForEvaluation = useCallback(() => {
     alert("TODO");
@@ -269,15 +290,16 @@ export const Level0 = () => {
     <div>
       <ul className="ml-8 mb-8 list-disc">
         <li>
-          shouldFireBooster will be called once per simulation millisecond
+          `shouldFireBooster` will be called once per simulation millisecond
         </li>
         <li>
           if it returns true, the thruster will fire for that millisecond,
           otherwise free-fall
         </li>
+        <li>the barge will begin at an altitude of {INITAL_Y_POS}m</li>
         <li>
-          the barge must reach altitude 0 with a speed no greater than{" "}
-          {LANDING_SPEED_THRESHOLD} m/s
+          the barge must reach altitude 0m with a speed no greater than{" "}
+          {LANDING_SPEED_THRESHOLD}m/s
         </li>
         <li>faster = better</li>
         <li>
@@ -286,21 +308,50 @@ export const Level0 = () => {
         </li>
       </ul>
       <div className="flex flex-row">
-        <Simulation
-          yPos={yPos}
-          yMaxPos={yMaxPos}
-          isFiring={isFiring}
-          isExploded={result === "failure"}
-        />
-        <div className="flex flex-col w-full">
+        <div className="w-64">
+          <Simulation
+            yPos={yPos}
+            yMaxPos={yMaxPos}
+            isFiring={isFiring}
+            isExploded={result === "failure"}
+          />
+        </div>
+        <div className="flex flex-col w-full max-w-6xl">
           <Editor code={code} setCode={setCode} />
           <div className="flex flex-row py-4 px-8">
             <button className="p-2 underline" onClick={runSimuation}>
               Test Program &gt;&gt;
             </button>
+            <button
+              className="p-2 underline"
+              onClick={handleReset || (() => {})}
+            >
+              Abort &gt;&gt;
+            </button>
             <button className="p-2 underline" onClick={submitForEvaluation}>
               Submit for Evaluation &gt;&gt;
             </button>
+          </div>
+          <div className="flex flex-row py-4 px-8">
+            <div>
+              {result === "success" && <div>Success!</div>}
+              {(result === "failure" || result === "timeout") && (
+                <div>
+                  <p>Failure!</p>
+                </div>
+              )}
+              {result !== null && (
+                <div>
+                  <p>
+                    The simulation ran for {resultTime?.toFixed(3)} seconds.
+                  </p>
+                  <p>
+                    The barge had a final speed of {resultSpeed?.toFixed(3)}{" "}
+                    meters per second.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

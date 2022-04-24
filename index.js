@@ -1,26 +1,26 @@
-const GRAVITY = -9.8 // m*s^-2
+const GRAVITY_ACCEL = -9.8 // m*s^-2
 
-const TICK_PER_SECOND = 10000;
+const TICK_PER_SECOND = 1000;
 const SECOND_LIMIT = 100;
 const TICK_LIMIT = TICK_PER_SECOND * SECOND_LIMIT;
 
 const THRUST_ACCEL = 30; //
 
-const shouldFireBooster = ({velocity, position}) => {
+const shouldFireBooster = ({velocity: velo, position: posn}) => {
 
 
-    const netAccel = THRUST_ACCEL + GRAVITY;
 
-    const h1 = Math.abs(velocity);
-    const h2 = Math.abs(-0.75);
-    // const area = position; // = (b * h) / 2
-    const area = position + 0.01; // = (b*(h1-h2))/2 + b* h2
-    // const neededTime = (2*area)/h1;
+    const netAccel = THRUST_ACCEL + GRAVITY_ACCEL;
+    const h1 = Math.abs(velo);
+    const h2 = Math.abs(-1.7);
+    const area = posn + 0.01; // = (b*(h1-h2))/2 + b* h2
     const neededTime = (2*area) / (h1 + h2)
-    // const neededAccel = h1/neededTime;
     const neededAccel = (h1 - h2)/neededTime;
-
     return neededAccel >= netAccel;
+    // const area = position; // = (b * h) / 2
+    // const neededTime = (2*area)/h1;
+    // const neededAccel = h1/neededTime;
+
 
     // return (position < 50 && velocity < -10) ||( position < 10 && velocity < -1);
 }
@@ -37,7 +37,7 @@ const main = () => {
     let numFired = 0;
 
     while (tick < TICK_LIMIT && objectY_meters > groundY_meters) {
-        objectY_velocity += GRAVITY / TICK_PER_SECOND;
+        objectY_velocity += GRAVITY_ACCEL / TICK_PER_SECOND;
         let fired= false;
         if (shouldFireBooster({velocity: objectY_velocity, position: objectY_meters})) {
             fired = true;
