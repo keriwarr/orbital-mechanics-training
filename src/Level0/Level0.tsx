@@ -2,20 +2,19 @@ import { useCallback, useEffect, useState } from "react";
 import { Editor } from "./Editor";
 import { getSandboxedFunction } from "./sandbox";
 import { Simulation } from "./Simulation";
+import {
+  FRAME_PER_SECOND,
+  runSimulation,
+  SimulationFrameData,
+  SimulationResultData,
+  TICK_PER_SECOND,
+  DEFAULT_TIMEOUT_SECONDS,
+} from "./engine";
 
-const TICK_PER_SECOND = 1000;
-const SECOND_LIMIT = 60;
-const TICK_LIMIT = TICK_PER_SECOND * SECOND_LIMIT;
 const LANDING_SPEED_THRESHOLD = 2;
-
 const GRAVITY_ACCEL = -9.81;
-const THRUST_ACCEL = -1 * GRAVITY_ACCEL + 1337 / SECOND_LIMIT;
-
-const INITAL_Y_POS = 100;
-
-const FRAME_PER_SECOND = 60;
-
-const TICK_PER_FRAME = TICK_PER_SECOND / FRAME_PER_SECOND;
+const THRUST_ACCEL = -1 * GRAVITY_ACCEL + 1337 / DEFAULT_TIMEOUT_SECONDS;
+const INITAL_POSN = 100;
 
 export const preamble = `\
 /**
@@ -32,19 +31,33 @@ function shouldFireBooster({time, velo, posn}, {GRAVITY_ACCEL, THRUST_ACCEL}) {`
 const startingCode = `  return false;`;
 export const postamble = "}";
 
+export type ShouldFireBooster = (
+  args: {
+    time: number;
+    velo: number;
+    posn: number;
+  },
+  constants: {
+    GRAVITY_ACCEL: number;
+    THRUST_ACCEL: number;
+  }
+) => unknown;
+
 export const Level0 = () => {
   const [code, setCode] = useState(
     localStorage.getItem("level0-shouldFireBooster") ?? startingCode
   );
-  const [yPos, setYPos] = useState(INITAL_Y_POS);
+  const [renderPosn, setRenderPosn] = useState(INITAL_POSN);
   const [isFiring, setIsFiring] = useState(false);
   const [result, setResult] = useState<
-    "success" | "failure" | "timeout" | null
+    "landed" | "crashed" | "timedout" | null
   >(null);
   const [resultTime, setResultTime] = useState<number | null>(null);
   const [resultSpeed, setResultSpeed] = useState<number | null>(null);
-  const yMaxPos = INITAL_Y_POS;
   const [handleReset, setHandleReset] = useState<(() => void) | null>(null);
+  const [evaluationResultText, setEvaluationResultText] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     localStorage.setItem("level0-shouldFireBooster", code);
@@ -55,104 +68,251 @@ export const Level0 = () => {
       handleReset();
     }
 
-    let posn = INITAL_Y_POS;
-    let velo = 0;
-    let tick = 0;
-    let fireCount = 0;
-    let frameTickCount = 0;
-    let frameCount = 0;
+    let cancelSignalResolver: () => void;
+    const cancelSignal = new Promise<void>((resolve) => {
+      cancelSignalResolver = resolve;
+    });
 
-    const shouldFireBooster = getSandboxedFunction<
-      (
-        args: { time: number; velo: number; posn: number },
-        constants: { GRAVITY_ACCEL: number; THRUST_ACCEL: number }
-      ) => unknown
-    >(`${preamble}\n${code}\n${postamble}`);
+    let frameData: Array<
+      | ({ type: "frame" } & SimulationFrameData)
+      | ({ type: "result" } & SimulationResultData)
+    > = [];
 
-    const simulateOneTick = () => {
-      velo += GRAVITY_ACCEL / TICK_PER_SECOND;
-      if (
-        shouldFireBooster(
-          {
-            time: tick, // hmmm
-            posn,
-            velo,
-          },
-          { GRAVITY_ACCEL, THRUST_ACCEL }
-        )
-      ) {
-        fireCount += 1;
-        velo += THRUST_ACCEL / TICK_PER_SECOND;
-      }
-      posn += velo / TICK_PER_SECOND;
-      tick += 1;
-      frameTickCount += 1;
-    };
+    runSimulation({
+      params: {
+        initialPosn: INITAL_POSN,
+        initialVelo: 0,
+        gravityAccel: GRAVITY_ACCEL,
+        thrustAccel: THRUST_ACCEL,
+        touchdownSpeedThreshold: LANDING_SPEED_THRESHOLD,
+        shouldFireBooster: getSandboxedFunction<ShouldFireBooster>(
+          `${preamble}\n${code}\n${postamble}`
+        ),
+      },
+      cancelSignal,
+      handleFrameData: (frameDatum) => {
+        frameData.push({ type: "frame", ...frameDatum });
+      },
+      handleResult: (result) => {
+        frameData.push({
+          type: "result",
+          ...result,
+        });
+      },
+    });
 
-    const simulateOneFrame = () => {
-      while (
-        tick < TICK_LIMIT &&
-        posn > 0 &&
-        tick < (frameCount + 1) * TICK_PER_FRAME
-      ) {
-        simulateOneTick();
-      }
+    const renderFrameData = () => {
+      const frameDatum = frameData.shift();
 
-      setYPos(posn);
-      setIsFiring(fireCount / frameTickCount > 0.5);
+      if (!frameDatum) return;
 
-      frameTickCount = 0;
-      frameCount += 1;
-      fireCount = 0;
-    };
+      setRenderPosn(frameDatum.posn);
 
-    let intervalHandle: any;
-
-    const handleInterval = () => {
-      simulateOneFrame();
-
-      if (tick >= TICK_LIMIT) {
-        setResult("timeout");
-        setResultTime(tick / TICK_PER_SECOND);
-        setResultSpeed(Math.abs(velo));
-        clearInterval(intervalHandle);
-        return;
+      if (frameDatum.type === "frame") {
+        setIsFiring(frameDatum.isFiring);
       }
 
-      if (posn < 0) {
-        // handle resolution
-        if (velo > 0) {
-          throw new Error("wtf");
-        }
-        if (velo > -2) {
-          setResult("success");
-        } else {
-          setResult("failure");
-        }
-        setResultTime(tick / TICK_PER_SECOND);
-        setResultSpeed(Math.abs(velo));
-        clearInterval(intervalHandle);
-        return;
+      if (frameDatum.type === "result") {
+        setResult(frameDatum.result);
+        setResultTime(frameDatum.resultTimeMS / TICK_PER_SECOND);
+        setResultSpeed(frameDatum.resultSpeed);
+        window.clearInterval(renderIntervalHandler);
       }
     };
 
-    intervalHandle = setInterval(handleInterval, 1000 / FRAME_PER_SECOND);
+    const renderIntervalHandler = setInterval(
+      renderFrameData,
+      1000 / FRAME_PER_SECOND
+    );
 
     setHandleReset(() => () => {
-      setYPos(INITAL_Y_POS);
+      setRenderPosn(INITAL_POSN);
       setIsFiring(false);
       setResult(null);
       setResultTime(null);
       setResultSpeed(null);
-      clearInterval(intervalHandle);
+      cancelSignalResolver();
+      window.clearInterval(renderIntervalHandler);
     });
   }, [code, handleReset]);
 
   const submitForEvaluation = useCallback(() => {
-    alert("TODO");
-  }, []);
+    setEvaluationResultText("Loading ...");
+    const results: Array<
+      SimulationResultData & {
+        initialPosn: number;
+        gravityAccel: number;
+        thrustAccel: number;
+      }
+    > = [];
+    const freeFallResults: Array<
+      SimulationResultData & {
+        initialPosn: number;
+        gravityAccel: number;
+        thrustAccel: number;
+      }
+    > = [];
+
+    let resultCount = 0;
+
+    const shouldFireBooster = getSandboxedFunction<ShouldFireBooster>(
+      `${preamble}\n${code}\n${postamble}`
+    );
+
+    const shouldNotFireBooster = getSandboxedFunction<ShouldFireBooster>(
+      `${preamble}\nreturn false\n${postamble}`
+    );
+
+    const POSN_VARIATIONS = 8;
+    const GRAVITY_VARIATIONS = 4;
+    const THRUST_VARIATIONS = 4;
+    const NUM_VARIATIONS =
+      POSN_VARIATIONS * GRAVITY_VARIATIONS * THRUST_VARIATIONS;
+
+    const handleResults = () => {
+      const numLanded = results.filter(
+        ({ result }) => result === "landed"
+      ).length;
+      const numCrashed = results.filter(
+        ({ result }) => result === "crashed"
+      ).length;
+      const numTimedOut = results.filter(
+        ({ result }) => result === "timedout"
+      ).length;
+      const meanLandingSpeed =
+        results.reduce((sum, next) => sum + next.resultSpeed, 0) /
+        results.length;
+      const maxLandingSpeed = Math.max(
+        ...results.map(({ resultSpeed }) => resultSpeed)
+      );
+      const totalRocketFireCount = results.reduce(
+        (sum, next) => sum + next.totalFireCount,
+        0
+      );
+
+      const failedCases = results.filter(({ result }) => result !== "landed");
+
+      const squareMeanSqrtDifference = Math.pow(
+        results
+          .map(({ initialPosn, gravityAccel, thrustAccel, resultTimeMS }) => {
+            const freeFallTime = freeFallResults.find(
+              (result) =>
+                result.initialPosn === initialPosn &&
+                result.gravityAccel === gravityAccel &&
+                result.thrustAccel === thrustAccel
+            )?.resultTimeMS;
+
+            if (!freeFallTime) {
+              throw new Error("missing free fall result for config");
+            }
+
+            return Math.sqrt(resultTimeMS - freeFallTime);
+          })
+          .reduce((p, n) => p + n, 0) / results.length,
+        2
+      );
+
+      const success = numCrashed === 0 && numTimedOut === 0;
+
+      setEvaluationResultText(`${
+        success
+          ? `Congratulations! Your submission passed all ${NUM_VARIATIONS} test cases.`
+          : `Some test cases failed.`
+      }
+Successful landings: ${numLanded}
+Crash landings: ${numCrashed}
+Time-outs (240s): ${numTimedOut}
+
+Mean Landing Speed: ${meanLandingSpeed.toFixed(3)}
+Max Landing Speed: ${maxLandingSpeed.toFixed(3)}
+Number of times rocket fired: ${totalRocketFireCount}
+Score (lower is better): ${squareMeanSqrtDifference.toFixed(3)}
+${
+  failedCases.length === 0
+    ? ""
+    : `
+Failed Test cases:
+${failedCases
+  .map(
+    ({ initialPosn, gravityAccel, thrustAccel }) =>
+      `initialPosn: ${initialPosn}, gravityAccel: ${gravityAccel}, thrustAccel: ${thrustAccel}`
+  )
+  .join("\n")}`
+}`);
+    };
+
+    for (
+      let initialPosn = 20;
+      initialPosn < 20 * 2 ** POSN_VARIATIONS;
+      initialPosn *= 2
+    ) {
+      const lowestGravity = Math.min(-2, -initialPosn / 128);
+
+      for (
+        let gravityAccel = lowestGravity;
+        gravityAccel > lowestGravity * 2 ** GRAVITY_VARIATIONS;
+        gravityAccel *= 2
+      ) {
+        const lowestAccel = gravityAccel * -1.5;
+
+        for (
+          let thrustAccel = lowestAccel;
+          thrustAccel < gravityAccel * -1.5 * 2 ** THRUST_VARIATIONS;
+          thrustAccel *= 2
+        ) {
+          const config = {
+            initialPosn,
+            gravityAccel,
+            thrustAccel,
+          };
+          const commonParams = {
+            ...config,
+            initialVelo: 0,
+            touchdownSpeedThreshold: LANDING_SPEED_THRESHOLD,
+            timeoutSeconds: 240,
+          };
+
+          // check free-fall time
+          runSimulation({
+            params: {
+              ...commonParams,
+              shouldFireBooster: shouldNotFireBooster,
+            },
+            // eslint-disable-next-line no-loop-func
+            handleResult: (result) => {
+              freeFallResults.push({
+                ...config,
+                ...result,
+              });
+              resultCount += 1;
+              if (resultCount === NUM_VARIATIONS * 2) {
+                handleResults();
+              }
+            },
+          });
+
+          // check actual time
+          runSimulation({
+            params: { ...commonParams, shouldFireBooster },
+            // eslint-disable-next-line no-loop-func
+            handleResult: (result) => {
+              results.push({
+                ...config,
+                ...result,
+              });
+              resultCount += 1;
+              if (resultCount === NUM_VARIATIONS * 2) {
+                handleResults();
+              }
+            },
+          });
+        }
+      }
+    }
+  }, [code]);
+
   return (
-    <div>
+    <div className="flex flex-col flex-grow">
       <ul className="ml-8 mb-8 list-disc">
         <li>
           `shouldFireBooster` will be called once per simulation millisecond
@@ -161,24 +321,24 @@ export const Level0 = () => {
           if it returns true, the thruster will fire for that millisecond,
           otherwise free-fall
         </li>
-        <li>the barge will begin at an altitude of {INITAL_Y_POS}m</li>
+        <li>the barge will begin at an altitude of {INITAL_POSN}m</li>
         <li>
           the barge must reach altitude 0m with a speed no greater than{" "}
           {LANDING_SPEED_THRESHOLD}m/s
         </li>
         <li>faster = better</li>
         <li>
-          the simulation will automatically terminate after {SECOND_LIMIT}{" "}
-          seconds
+          the simulation will automatically terminate after{" "}
+          {DEFAULT_TIMEOUT_SECONDS} seconds
         </li>
       </ul>
-      <div className="flex flex-row">
+      <div className="flex flex-row flex-grow">
         <div className="w-64">
           <Simulation
-            yPos={yPos}
-            yMaxPos={yMaxPos}
+            posn={renderPosn}
+            maxPosn={INITAL_POSN}
             isFiring={isFiring}
-            isExploded={result === "failure"}
+            isExploded={result === "crashed"}
           />
         </div>
         <div className="flex flex-col w-full max-w-6xl">
@@ -199,8 +359,8 @@ export const Level0 = () => {
           </div>
           <div className="flex flex-row py-4 px-8">
             <div>
-              {result === "success" && <div>Success!</div>}
-              {(result === "failure" || result === "timeout") && (
+              {result === "landed" && <div>Success!</div>}
+              {(result === "crashed" || result === "timedout") && (
                 <div>
                   <p>Failure!</p>
                 </div>
@@ -217,6 +377,9 @@ export const Level0 = () => {
                 </div>
               )}
             </div>
+          </div>
+          <div className="flex flex-row py-4 px-8">
+            <pre>{evaluationResultText}</pre>
           </div>
         </div>
       </div>

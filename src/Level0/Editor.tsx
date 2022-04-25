@@ -22,7 +22,7 @@ export const Editor = ({
 
   return (
     <div
-      className="w-full p-2 flex-grow bg-gray-100 dark:bg-slate-800"
+      className="w-full p-2 bg-gray-100 dark:bg-slate-800"
       onClick={handleClick}
     >
       <CodeEditor

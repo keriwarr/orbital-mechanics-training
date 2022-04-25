@@ -1,6 +1,6 @@
 type SimulationParams = {
-  yPos: number;
-  yMaxPos: number;
+  posn: number;
+  maxPosn: number;
   isFiring: boolean;
   isExploded: boolean;
 };
@@ -11,14 +11,14 @@ const ASCII_BOX_INTERNAL_HEIGHT = 21;
 const NUM_MARKERS = 6;
 
 const getAsciiBox = ({
-  yPos,
-  yMaxPos,
+  posn,
+  maxPosn,
   isFiring,
   isExploded,
 }: SimulationParams) => {
   const rocketPos =
     ASCII_BOX_INTERNAL_HEIGHT -
-    Math.ceil((yPos / yMaxPos) * (ASCII_BOX_INTERNAL_HEIGHT - 1)) -
+    Math.ceil((posn / maxPosn) * (ASCII_BOX_INTERNAL_HEIGHT - 1)) -
     1;
 
   let asciiString = ``;
@@ -49,9 +49,9 @@ const getAsciiBox = ({
     );
     if (i % markerFrequency === 0) {
       asciiString += ` ${
-        yMaxPos -
-        (i / markerFrequency) * Math.floor(yMaxPos / (NUM_MARKERS - 1))
-      }m`.padStart(`${yMaxPos}`.length + 2, " ");
+        maxPosn -
+        (i / markerFrequency) * Math.floor(maxPosn / (NUM_MARKERS - 1))
+      }m`.padStart(`${maxPosn}`.length + 2, " ");
     }
 
     asciiString += "\n";
