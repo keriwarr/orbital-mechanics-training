@@ -18,12 +18,14 @@ function App() {
       {stage === STAGE.INTRO && (
         <>
           <Intro />
-          <button
-            className="p-2 underline"
-            onClick={() => setStage(STAGE.LEVEL0)}
-          >
-            Continue &gt;&gt;
-          </button>
+          <div className="flex flex-row">
+            <button
+              className="p-2 underline"
+              onClick={() => setStage(STAGE.LEVEL0)}
+            >
+              Continue &gt;&gt;
+            </button>
+          </div>
         </>
       )}
       {stage === STAGE.LEVEL0 && (
