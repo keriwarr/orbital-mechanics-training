@@ -16,6 +16,8 @@ import {
   findGist,
   createGist,
   saveCodeAndResultsToGist,
+  getGist,
+  getGistCodeFileName,
 } from "../codesync";
 
 const LANDING_SPEED_THRESHOLD = 2;
@@ -187,6 +189,20 @@ export const Level0 = () => {
       console.error(e);
     }
   }, []);
+
+  const loadCodeFromGithub = useCallback(async () => {
+    try {
+      if (!githubAuthId) throw new Error("Missing auth ID!");
+      if (!githubGistId) throw new Error("Missing gist ID!");
+      const gist = await getGist(githubAuthId, githubGistId);
+
+      if (!gist) throw new Error("Failed to find gist");
+
+      setCode(gist.files[getGistCodeFileName({ levelNo: 0 })].content);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [githubAuthId, githubGistId]);
 
   const openGithub = useCallback(() => {
     window.open(`https://gist.github.com/${githubGistId}`);
@@ -412,7 +428,7 @@ ${failedCases
         </div>
         <div className="flex flex-col w-full max-w-6xl">
           <Editor code={code} setCode={setCode} />
-          <div className="flex flex-row py-4 px-8">
+          <div className="flex flex-row pt-4 px-8">
             <button className="p-2 underline" onClick={runSimuation}>
               Test Program &gt;&gt;
             </button>
@@ -425,18 +441,25 @@ ${failedCases
             <button className="p-2 underline" onClick={submitForEvaluation}>
               Submit for Evaluation &gt;&gt;
             </button>
+          </div>
+          <div className="flex flex-row px-8">
             {(githubAuthId == null || githubGistId == null) && (
               <button className="p-2 underline" onClick={connectToGithub}>
                 Connect Github &gt;&gt;
               </button>
             )}
             {githubAuthId != null && githubGistId != null && (
-              <button className="p-2 underline" onClick={openGithub}>
-                View code on Github &gt;&gt;
-              </button>
+              <>
+                <button className="p-2 underline" onClick={loadCodeFromGithub}>
+                  Load from Github &gt;&gt;
+                </button>
+                <button className="p-2 underline" onClick={openGithub}>
+                  View code on Github &gt;&gt;
+                </button>
+              </>
             )}
           </div>
-          <div className="flex flex-row py-4 px-8">
+          <div className="flex flex-row pt-4 px-8">
             <div>
               {result === "landed" && <div>Success!</div>}
               {(result === "crashed" || result === "timedout") && (

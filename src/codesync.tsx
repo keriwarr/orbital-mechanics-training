@@ -51,6 +51,20 @@ export async function findGist(authId: string) {
 }
 
 /**
+ * getGist will attempt to load a gist by id. If none
+ * is found, `undefined` is returned.
+ */
+export async function getGist(authId: string, gistId: string) {
+  const gist = (await github
+    .auth(authId)
+    .get(`/gists/${gistId}`)
+    .then((response) => response.json())
+    .catch(console.error)) as any;
+
+  return gist;
+}
+
+/**
  * createGist will create a new blank gist with a readme.
  */
 export async function createGist(authId: string) {
@@ -88,7 +102,7 @@ export async function saveCodeAndResultsToGist(
 ) {
   const body = {
     files: {
-      [`level_${levelNo}.js`]: { content: code },
+      [getGistCodeFileName({ levelNo })]: { content: code },
       [ROCKETS_README_FILENAME]: {
         content: ROCKETS_README,
       },
@@ -111,4 +125,8 @@ export async function saveCodeAndResultsToGist(
     .catch((error) => {
       console.error(error);
     });
+}
+
+export function getGistCodeFileName({ levelNo }: { levelNo: number }) {
+  return `level_${levelNo}.js`;
 }
