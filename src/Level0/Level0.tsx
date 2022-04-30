@@ -11,7 +11,12 @@ import {
   DEFAULT_TIMEOUT_SECONDS,
 } from "./engine";
 
-import { triggerGithubAuthentication, findGist, createGist, updateLevel } from "../codesync";
+import {
+  triggerGithubAuthentication,
+  findGist,
+  createGist,
+  updateLevel,
+} from "../codesync";
 
 const LANDING_SPEED_THRESHOLD = 2;
 const GRAVITY_ACCEL = -9.8;
@@ -26,8 +31,8 @@ export const preamble = `\
  *
  * GRAVITY_ACCEL: in meters per second squared, ${GRAVITY_ACCEL} within sample simulation
  * THRUST_ACCEL: in meters per second squared, ${THRUST_ACCEL.toFixed(
-  2
-)} within sample simulation
+   2
+ )} within sample simulation
  */
 function shouldFireBooster({time, velo, posn}, {GRAVITY_ACCEL, THRUST_ACCEL}) {`;
 const startingCode = `  return false;`;
@@ -65,10 +70,14 @@ export const Level0 = () => {
     string | null
   >(null);
 
-  const [githubAuthId, setGithubAuthId] = useState(localStorage.getItem("github-auth-id"));
+  const [githubAuthId, setGithubAuthId] = useState(
+    localStorage.getItem("github-auth-id")
+  );
   // TODO(joey): Check if the githubAuthId is still valid?
 
-  const [githubGistId, setGithubGistId] = useState(localStorage.getItem("github-gist-id"));
+  const [githubGistId, setGithubGistId] = useState(
+    localStorage.getItem("github-gist-id")
+  );
   // TODO(joey): Check if the gist is still valid?
 
   useEffect(() => {
@@ -155,41 +164,32 @@ export const Level0 = () => {
     });
   }, [code, handleReset, githubAuthId, githubGistId]);
 
-  const connectToGithub = useCallback(() => {
-    triggerGithubAuthentication()
-      .then(authId => {
-        if (authId) {
-          setGithubAuthId(authId);
-          localStorage.setItem("github-auth-id", authId);
+  const connectToGithub = useCallback(async () => {
+    try {
+      const authId = await triggerGithubAuthentication();
 
-          // FIXME(joey): This is jank, but whatever!
-          findGist(authId)
-            .then(gist => {
-              if (gist) {
-                setGithubGistId(gist.id);
-                localStorage.setItem("github-gist-id", gist.id);
-              } else {
-                console.error("No gist was found", gist);
-                createGist(authId)
-                  .then(createdGist => {
-                    if (createdGist) {
-                      setGithubGistId(createdGist.id);
-                      localStorage.setItem("github-gist-id", createdGist.id);
-                    } else {
-                      console.error("POST gist was empty", createdGist);
-                    }
-                  })
-                  .catch(console.error);
-              }
-            })
-            .catch(console.error);
-        }
-      })
-      .catch(console.error);
+      if (!authId) throw new Error("Missing authId!");
+
+      setGithubAuthId(authId);
+      localStorage.setItem("github-auth-id", authId);
+
+      let gist = await findGist(authId);
+
+      if (!gist) {
+        gist = await createGist(authId);
+      }
+
+      if (!gist) throw new Error("Failed to create gist");
+
+      setGithubGistId(gist.id);
+      localStorage.setItem("github-gist-id", gist.id);
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   const openGithub = useCallback(() => {
-    window.open(`https://gist.github.com/${githubGistId}`)
+    window.open(`https://gist.github.com/${githubGistId}`);
   }, [githubGistId]);
 
   const submitForEvaluation = useCallback(() => {
@@ -271,10 +271,11 @@ export const Level0 = () => {
 
       const success = numCrashed === 0 && numTimedOut === 0;
 
-      const evaluationText = `${success
-        ? `Congratulations! Your submission passed all ${NUM_VARIATIONS} test cases.`
-        : `Some test cases failed.`
-        }
+      const evaluationText = `${
+        success
+          ? `Congratulations! Your submission passed all ${NUM_VARIATIONS} test cases.`
+          : `Some test cases failed.`
+      }
 Successful landings: ${numLanded}
 Crash landings: ${numCrashed}
 Time-outs (240s): ${numTimedOut}
@@ -283,17 +284,18 @@ Mean Landing Speed: ${meanLandingSpeed.toFixed(3)}
 Max Landing Speed: ${maxLandingSpeed.toFixed(3)}
 Number of times rocket fired: ${totalRocketFireCount}
 Score (lower is better): ${squareMeanSqrtDifference.toFixed(3)}
-${failedCases.length === 0
-          ? ""
-          : `
+${
+  failedCases.length === 0
+    ? ""
+    : `
 Failed Test cases:
 ${failedCases
-            .map(
-              ({ initialPosn, gravityAccel, thrustAccel }) =>
-                `initialPosn: ${initialPosn}, gravityAccel: ${gravityAccel}, thrustAccel: ${thrustAccel}`
-            )
-            .join("\n")}`
-        }`;
+  .map(
+    ({ initialPosn, gravityAccel, thrustAccel }) =>
+      `initialPosn: ${initialPosn}, gravityAccel: ${gravityAccel}, thrustAccel: ${thrustAccel}`
+  )
+  .join("\n")}`
+}`;
 
       if (githubAuthId && githubGistId) {
         updateLevel(githubAuthId, githubGistId, 0, code, evaluationText);
@@ -410,7 +412,7 @@ ${failedCases
             </button>
             <button
               className="p-2 underline"
-              onClick={handleReset || (() => { })}
+              onClick={handleReset || (() => {})}
             >
               Abort &gt;&gt;
             </button>
@@ -420,14 +422,13 @@ ${failedCases
             {(githubAuthId == null || githubGistId == null) && (
               <button className="p-2 underline" onClick={connectToGithub}>
                 Connect Github &gt;&gt;
-              </button>)
-            }
+              </button>
+            )}
             {githubAuthId != null && githubGistId != null && (
               <button className="p-2 underline" onClick={openGithub}>
                 View code on Github &gt;&gt;
-              </button>)
-            }
-
+              </button>
+            )}
           </div>
           <div className="flex flex-row py-4 px-8">
             <div>

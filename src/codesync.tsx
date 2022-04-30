@@ -1,13 +1,18 @@
-import Pizzly from 'pizzly-js';
+import Pizzly from "pizzly-js";
 
-const PIZZLY_PUBLISHABLE_KEY = "tgHqd*YKzZu!VVQq*z6dCfWJ3HetJHrXg2bbgsRN!Nhtzr6HCWJKvicU9WV8qxTvu6L-4ux6hFwRVn@N";
-const PIZZLY_HOST = 'https://auth.pereira.io';
-const pizzly = new Pizzly({ host: PIZZLY_HOST, publishableKey: PIZZLY_PUBLISHABLE_KEY });
-const github = pizzly.integration('github')
+const PIZZLY_PUBLISHABLE_KEY =
+  "tgHqd*YKzZu!VVQq*z6dCfWJ3HetJHrXg2bbgsRN!Nhtzr6HCWJKvicU9WV8qxTvu6L-4ux6hFwRVn@N";
+const PIZZLY_HOST = "https://auth.pereira.io";
+const pizzly = new Pizzly({
+  host: PIZZLY_HOST,
+  publishableKey: PIZZLY_PUBLISHABLE_KEY,
+});
+const github = pizzly.integration("github");
 
 const SETUP_ID = "23b9b51e-684c-455f-877f-d542fdbf9d84";
 
-const ROCKETS_GIST_DESCRIPTION = "Morgan-Wei IPLG Simulation Code (https://keri.warr.ca/rockets/) [do not remove: rockets-gist]";
+const ROCKETS_GIST_DESCRIPTION =
+  "Morgan-Wei IPLG Simulation Code (https://keri.warr.ca/rockets/) [do not remove: rockets-gist]";
 const ROCKETS_GIST_MARKER = "rockets-gist";
 const ROCKETS_README = `Welcome to your computer terminal connected to the network of Morgan-Wei Interplanetary Logistics Group. Please see your submissions for training below.
 To resume training, visit https://keri.warr.ca/rockets/`;
@@ -25,7 +30,7 @@ export async function triggerGithubAuthentication() {
       return authId;
     })
     .catch((error) => {
-      console.error(error)
+      console.error(error);
     });
 }
 
@@ -34,13 +39,15 @@ export async function triggerGithubAuthentication() {
  * is found, `undefined` is returned.
  */
 export async function findGist(authId: string) {
-  const gists = await github
+  const gists = (await github
     .auth(authId)
-    .get('/gists')
+    .get("/gists")
     .then((response) => response.json())
-    .catch(console.error) as Array<any>;
+    .catch(console.error)) as Array<any>;
 
-  return gists.find(gist => (gist.description || "").includes(ROCKETS_GIST_MARKER));
+  return gists.find((gist) =>
+    (gist.description || "").includes(ROCKETS_GIST_MARKER)
+  );
 }
 
 /**
@@ -53,16 +60,16 @@ export async function createGist(authId: string) {
     files: {
       [ROCKETS_README_FILENAME]: {
         content: ROCKETS_README,
-      }
-    }
+      },
+    },
   });
 
   return github
     .auth(authId)
-    .post('/gists', { body, headers: { "Content-Type": "application/json" } })
+    .post("/gists", { body, headers: { "Content-Type": "application/json" } })
     .then((response) => response.json())
     .catch((error) => {
-      console.error(error)
+      console.error(error);
     });
 }
 
@@ -72,27 +79,36 @@ export async function createGist(authId: string) {
  * The readme is updated for every action, incase the readme has any changed
  * contents.
  */
-export async function updateLevel(authId: string, gistId: string, levelNo: number, code: string, results: string | null) {
+export async function updateLevel(
+  authId: string,
+  gistId: string,
+  levelNo: number,
+  code: string,
+  results: string | null
+) {
   const body = {
     files: {
       [`level_${levelNo}.js`]: { content: code },
       [ROCKETS_README_FILENAME]: {
         content: ROCKETS_README,
-      }
+      },
     },
   };
 
   if (results) {
-    body['files'][`level_${levelNo}_results.txt`] = { content: results }
+    body["files"][`level_${levelNo}_results.txt`] = { content: results };
   }
 
   const bodySerialized = JSON.stringify(body);
 
   return github
     .auth(authId)
-    .patch(`/gists/${gistId}`, { body: bodySerialized, headers: { "Content-Type": "application/json" } })
+    .patch(`/gists/${gistId}`, {
+      body: bodySerialized,
+      headers: { "Content-Type": "application/json" },
+    })
     .then((response) => response.json())
     .catch((error) => {
-      console.error(error)
+      console.error(error);
     });
 }
