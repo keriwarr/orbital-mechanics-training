@@ -11,6 +11,8 @@ import {
   DEFAULT_TIMEOUT_SECONDS,
 } from "./engine";
 
+import { triggerGithubAuthentication, findGist, createGist, updateLevel } from "../codesync";
+
 const LANDING_SPEED_THRESHOLD = 2;
 const GRAVITY_ACCEL = -9.8;
 const THRUST_ACCEL = -1 * GRAVITY_ACCEL + 1337 / DEFAULT_TIMEOUT_SECONDS;
@@ -44,6 +46,10 @@ export type ShouldFireBooster = (
 ) => unknown;
 
 export const Level0 = () => {
+  // FIXME(joey): Consider loading the code from gist. It might be best to put
+  // that behind a button to avoid overwriting local state. Even better, check
+  // the age of the updated code vs Github. At worst, Github can be overwritten
+  // as version history is retained.
   const [code, setCode] = useState(
     localStorage.getItem("level0-shouldFireBooster") ?? startingCode
   );
@@ -59,8 +65,15 @@ export const Level0 = () => {
     string | null
   >(null);
 
+  const [githubAuthId, setGithubAuthId] = useState(localStorage.getItem("github-auth-id"));
+  // TODO(joey): Check if the githubAuthId is still valid?
+
+  const [githubGistId, setGithubGistId] = useState(localStorage.getItem("github-gist-id"));
+  // TODO(joey): Check if the gist is still valid?
+
   useEffect(() => {
     localStorage.setItem("level0-shouldFireBooster", code);
+    // TODO(joey): Add debounce for gist saving?
   }, [code]);
 
   const runSimuation = useCallback(() => {
@@ -77,6 +90,10 @@ export const Level0 = () => {
       | ({ type: "frame" } & SimulationFrameData)
       | ({ type: "result" } & SimulationResultData)
     > = [];
+
+    if (githubAuthId && githubGistId) {
+      updateLevel(githubAuthId, githubGistId, 0, code);
+    }
 
     runSimulation({
       params: {
@@ -125,6 +142,8 @@ export const Level0 = () => {
       1000 / FRAME_PER_SECOND
     );
 
+    // TODO(joey): Save code to Github.
+
     setHandleReset(() => () => {
       setRenderPosn(INITAL_POSN);
       setIsFiring(false);
@@ -136,8 +155,50 @@ export const Level0 = () => {
     });
   }, [code, handleReset]);
 
+  const connectToGithub = useCallback(() => {
+    triggerGithubAuthentication()
+      .then(authId => {
+        if (authId) {
+          setGithubAuthId(authId);
+          localStorage.setItem("github-auth-id", authId);
+
+          // FIXME(joey): This is jank, but whatever!
+          findGist(authId)
+            .then(gist => {
+              if (gist) {
+                setGithubAuthId(gist.id);
+                localStorage.setItem("github-gist-id", gist.id);
+              } else {
+                console.error("No gist was found", gist);
+                createGist(authId)
+                  .then(createdGist => {
+                    if (createdGist) {
+                      setGithubAuthId(createdGist.id);
+                      localStorage.setItem("github-gist-id", createdGist.id);
+                    } else {
+                      console.error("POST gist was empty", createdGist);
+                    }
+                  })
+                  .catch(console.error);
+              }
+            })
+            .catch(console.error);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const openGithub = useCallback(() => {
+    window.open(`https://gist.github.com/${githubGistId}`)
+  }, [githubGistId]);
+
   const submitForEvaluation = useCallback(() => {
     setEvaluationResultText("Loading ...");
+
+    if (githubAuthId && githubGistId) {
+      updateLevel(githubAuthId, githubGistId, 0, code);
+    }
+
     const results: Array<
       SimulationResultData & {
         initialPosn: number;
@@ -309,7 +370,7 @@ ${failedCases
         }
       }
     }
-  }, [code]);
+  }, [code, githubAuthId, githubGistId]);
 
   return (
     <div className="flex flex-col flex-grow">
@@ -349,13 +410,24 @@ ${failedCases
             </button>
             <button
               className="p-2 underline"
-              onClick={handleReset || (() => {})}
+              onClick={handleReset || (() => { })}
             >
               Abort &gt;&gt;
             </button>
             <button className="p-2 underline" onClick={submitForEvaluation}>
               Submit for Evaluation &gt;&gt;
             </button>
+            {(githubAuthId == null || githubGistId == null) && (
+              <button className="p-2 underline" onClick={connectToGithub}>
+                Connect Github &gt;&gt;
+              </button>)
+            }
+            {githubAuthId != null && githubGistId != null && (
+              <button className="p-2 underline" onClick={openGithub}>
+                View code on Github &gt;&gt;
+              </button>)
+            }
+
           </div>
           <div className="flex flex-row py-4 px-8">
             <div>
