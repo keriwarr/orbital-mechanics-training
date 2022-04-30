@@ -80,7 +80,7 @@ export const runSimulation = ({
         frameFireCount += 1;
       }
     } catch (e) {
-      // do nothing!
+      console.error(e)
     }
 
     posn += velo / TICK_PER_SECOND;
@@ -96,11 +96,14 @@ export const runSimulation = ({
     while (true) {
       simulateOneTick();
 
-      if (tick >= TIMEOUT_TICKS || posn <= 0) {
+      const roundedPosn = Math.floor(posn * 10 ** 6) / 10 ** 6;
+      const roundedVelo = Math.floor(velo * 10 ** 6) / 10 ** 6;
+
+      if (tick >= TIMEOUT_TICKS || roundedPosn <= 0) {
         // eslint-disable-next-line no-loop-func
         const result = (() => {
           if (tick >= TIMEOUT_TICKS) return 'timedout';
-          if (Math.abs(velo) <= touchdownSpeedThreshold) return 'landed';
+          if (Math.abs(roundedVelo) <= touchdownSpeedThreshold) return 'landed';
           return 'crashed';
         })();
 
@@ -108,8 +111,8 @@ export const runSimulation = ({
           result,
           resultTimeMS: tick / TICK_PER_MS,
           totalFireCount: fireCount,
-          resultSpeed: Math.abs(velo),
-          posn,
+          resultSpeed: Math.abs(roundedVelo),
+          posn: roundedPosn,
         })
         return;
       }

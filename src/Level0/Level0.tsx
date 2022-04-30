@@ -12,7 +12,7 @@ import {
 } from "./engine";
 
 const LANDING_SPEED_THRESHOLD = 2;
-const GRAVITY_ACCEL = -9.81;
+const GRAVITY_ACCEL = -9.8;
 const THRUST_ACCEL = -1 * GRAVITY_ACCEL + 1337 / DEFAULT_TIMEOUT_SECONDS;
 const INITAL_POSN = 100;
 
