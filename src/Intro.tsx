@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export const Intro = () => (
   <div>
     <p className="text-base max-w-prose mb-4">
@@ -37,5 +39,10 @@ export const Intro = () => (
       You'll do fine. Get cracking, and remember, no funny business with that
       console, we'll be keeping an eye on you from the next room over.
     </p>
+    <div className="flex flex-row">
+      <Link to="/level/0">
+        <button className="p-2 underline">Continue &gt;&gt;</button>
+      </Link>
+    </div>
   </div>
 );

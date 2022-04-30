@@ -9,6 +9,10 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  body {
+    background-color: rgb(15, 23, 42);
+  }
+
   .w-tc-editor {
     --color-canvas-subtle: rgb(30, 41, 59) !important;
   }
