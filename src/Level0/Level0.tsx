@@ -19,6 +19,7 @@ import {
   getGist,
   getGistCodeFileName,
 } from "../codesync";
+import { Button } from "../components/Button";
 
 const LANDING_SPEED_THRESHOLD = 2;
 const GRAVITY_ACCEL = -9.8;
@@ -429,31 +430,18 @@ ${failedCases
         <div className="flex flex-col w-full max-w-6xl">
           <Editor code={code} setCode={setCode} />
           <div className="flex flex-row pt-4 px-8">
-            <button className="p-2 underline" onClick={runSimuation}>
-              Test Program &gt;&gt;
-            </button>
-            <button
-              className="p-2 underline"
-              onClick={handleReset || (() => {})}
-            >
-              Abort &gt;&gt;
-            </button>
-            <button className="p-2 underline" onClick={submitForEvaluation}>
-              Submit for Evaluation &gt;&gt;
-            </button>
+            <Button onClick={runSimuation}>Test Program</Button>
+            <Button onClick={handleReset || (() => {})}>Abort</Button>
+            <Button onClick={submitForEvaluation}>Submit for Evaluation</Button>
           </div>
           <div className="flex flex-row px-8">
             {(githubAuthId == null || githubGistId == null) && (
-              <button className="p-2 underline" onClick={connectToGithub}>
-                Connect Github &gt;&gt;
-              </button>
+              <Button onClick={connectToGithub}>Connect Github</Button>
             )}
             {githubAuthId != null && githubGistId != null && (
               <>
-                <button className="p-2 underline" onClick={loadCodeFromGithub}>
-                  Load from Github &gt;&gt;
-                </button>
-                <button className="p-2 underline" onClick={openGithub}>
+                <Button onClick={loadCodeFromGithub}>Load from Github</Button>
+                <button onClick={openGithub}>
                   View code on Github &gt;&gt;
                 </button>
               </>

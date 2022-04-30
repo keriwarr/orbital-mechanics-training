@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Button } from "./components/Button";
 
 export const Intro = () => (
   <div>
@@ -41,7 +42,7 @@ export const Intro = () => (
     </p>
     <div className="flex flex-row">
       <Link to="/level/0">
-        <button className="p-2 underline">Continue &gt;&gt;</button>
+        <Button>Continue</Button>
       </Link>
     </div>
   </div>
