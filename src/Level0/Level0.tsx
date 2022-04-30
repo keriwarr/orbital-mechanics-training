@@ -92,7 +92,7 @@ export const Level0 = () => {
     > = [];
 
     if (githubAuthId && githubGistId) {
-      updateLevel(githubAuthId, githubGistId, 0, code);
+      updateLevel(githubAuthId, githubGistId, 0, code, null);
     }
 
     runSimulation({
@@ -153,7 +153,7 @@ export const Level0 = () => {
       cancelSignalResolver();
       window.clearInterval(renderIntervalHandler);
     });
-  }, [code, handleReset]);
+  }, [code, handleReset, githubAuthId, githubGistId]);
 
   const connectToGithub = useCallback(() => {
     triggerGithubAuthentication()
@@ -194,10 +194,6 @@ export const Level0 = () => {
 
   const submitForEvaluation = useCallback(() => {
     setEvaluationResultText("Loading ...");
-
-    if (githubAuthId && githubGistId) {
-      updateLevel(githubAuthId, githubGistId, 0, code);
-    }
 
     const results: Array<
       SimulationResultData & {
@@ -275,7 +271,7 @@ export const Level0 = () => {
 
       const success = numCrashed === 0 && numTimedOut === 0;
 
-      setEvaluationResultText(`${success
+      const evaluationText = `${success
         ? `Congratulations! Your submission passed all ${NUM_VARIATIONS} test cases.`
         : `Some test cases failed.`
         }
@@ -297,7 +293,13 @@ ${failedCases
                 `initialPosn: ${initialPosn}, gravityAccel: ${gravityAccel}, thrustAccel: ${thrustAccel}`
             )
             .join("\n")}`
-        }`);
+        }`;
+
+      if (githubAuthId && githubGistId) {
+        updateLevel(githubAuthId, githubGistId, 0, code, evaluationText);
+      }
+
+      setEvaluationResultText(evaluationText);
     };
 
     for (
