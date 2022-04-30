@@ -72,19 +72,25 @@ export async function createGist(authId: string) {
  * The readme is updated for every action, incase the readme has any changed
  * contents.
  */
-export async function updateLevel(authId: string, gistId: string, levelNo: number, code: string) {
-  const body = JSON.stringify({
+export async function updateLevel(authId: string, gistId: string, levelNo: number, code: string, results: string | null) {
+  const body = {
     files: {
-      [`level_${levelNo}`]: { content: code },
+      [`level_${levelNo}.js`]: { content: code },
       [ROCKETS_README_FILENAME]: {
         content: ROCKETS_README,
       }
     },
-  });
+  };
+
+  if (results) {
+    body['files'][`level_${levelNo}_results.txt`] = { content: results }
+  }
+
+  const bodySerialized = JSON.stringify(body);
 
   return github
     .auth(authId)
-    .patch(`/gists/${gistId}`, { body, headers: { "Content-Type": "application/json" } })
+    .patch(`/gists/${gistId}`, { body: bodySerialized, headers: { "Content-Type": "application/json" } })
     .then((response) => response.json())
     .catch((error) => {
       console.error(error)
