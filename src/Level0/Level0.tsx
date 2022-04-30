@@ -166,14 +166,14 @@ export const Level0 = () => {
           findGist(authId)
             .then(gist => {
               if (gist) {
-                setGithubAuthId(gist.id);
+                setGithubGistId(gist.id);
                 localStorage.setItem("github-gist-id", gist.id);
               } else {
                 console.error("No gist was found", gist);
                 createGist(authId)
                   .then(createdGist => {
                     if (createdGist) {
-                      setGithubAuthId(createdGist.id);
+                      setGithubGistId(createdGist.id);
                       localStorage.setItem("github-gist-id", createdGist.id);
                     } else {
                       console.error("POST gist was empty", createdGist);
