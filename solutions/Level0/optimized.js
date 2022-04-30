@@ -1,13 +1,3 @@
-/**
- * time: in milliseconds, integer, non-negative
- * velo: in meters per second, floating point
- * posn: in meters, floating point, non-negative
- *
- * GRAVITY_ACCEL: in meters per second squared, ${GRAVITY_ACCEL} within sample
-   simulation
- * THRUST_ACCEL: in meters per second squared, ${THRUST_ACCEL.toFixed( 2 )}
-   within sample simulation
- */
 export function shouldFireBooster(
   { time, velo, posn },
   { GRAVITY_ACCEL, THRUST_ACCEL }
