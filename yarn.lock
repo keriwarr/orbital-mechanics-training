@@ -6556,6 +6556,11 @@ pirates@^4.0.4:
   resolved "https://registry.yarnpkg.com/pirates/-/pirates-4.0.5.tgz#feec352ea5c3268fb23a37c702ab1699f35a5f3b"
   integrity sha512-8V9+HQPupnaXMA23c5hvl69zXvTwTzyAYasnkb0Tts4XvO4CliqONMOnvlq26rkhLC3nWDFBJf73LU1e1VZLaQ==
 
+pizzly-js@^0.2.8:
+  version "0.2.8"
+  resolved "https://registry.yarnpkg.com/pizzly-js/-/pizzly-js-0.2.8.tgz#5fb118c9e0faaf5716b3de5ab76aa276c06faf1c"
+  integrity sha512-770xh/dunk7034B5C0EZChRd9gIhhrDTvol5rt0EspM5Ny69kaluenjoh+jbu9HNJUZw019Iayqh9vTpItAFGA==
+
 pkg-dir@^4.1.0, pkg-dir@^4.2.0:
   version "4.2.0"
   resolved "https://registry.yarnpkg.com/pkg-dir/-/pkg-dir-4.2.0.tgz#f099133df7ede422e81d1d8448270eeb3e4261f3"
