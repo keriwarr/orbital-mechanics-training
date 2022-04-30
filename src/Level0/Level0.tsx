@@ -26,8 +26,8 @@ export const preamble = `\
  *
  * GRAVITY_ACCEL: in meters per second squared, ${GRAVITY_ACCEL} within sample simulation
  * THRUST_ACCEL: in meters per second squared, ${THRUST_ACCEL.toFixed(
-   2
- )} within sample simulation
+  2
+)} within sample simulation
  */
 function shouldFireBooster({time, velo, posn}, {GRAVITY_ACCEL, THRUST_ACCEL}) {`;
 const startingCode = `  return false;`;
@@ -275,11 +275,10 @@ export const Level0 = () => {
 
       const success = numCrashed === 0 && numTimedOut === 0;
 
-      setEvaluationResultText(`${
-        success
-          ? `Congratulations! Your submission passed all ${NUM_VARIATIONS} test cases.`
-          : `Some test cases failed.`
-      }
+      setEvaluationResultText(`${success
+        ? `Congratulations! Your submission passed all ${NUM_VARIATIONS} test cases.`
+        : `Some test cases failed.`
+        }
 Successful landings: ${numLanded}
 Crash landings: ${numCrashed}
 Time-outs (240s): ${numTimedOut}
@@ -288,18 +287,17 @@ Mean Landing Speed: ${meanLandingSpeed.toFixed(3)}
 Max Landing Speed: ${maxLandingSpeed.toFixed(3)}
 Number of times rocket fired: ${totalRocketFireCount}
 Score (lower is better): ${squareMeanSqrtDifference.toFixed(3)}
-${
-  failedCases.length === 0
-    ? ""
-    : `
+${failedCases.length === 0
+          ? ""
+          : `
 Failed Test cases:
 ${failedCases
-  .map(
-    ({ initialPosn, gravityAccel, thrustAccel }) =>
-      `initialPosn: ${initialPosn}, gravityAccel: ${gravityAccel}, thrustAccel: ${thrustAccel}`
-  )
-  .join("\n")}`
-}`);
+            .map(
+              ({ initialPosn, gravityAccel, thrustAccel }) =>
+                `initialPosn: ${initialPosn}, gravityAccel: ${gravityAccel}, thrustAccel: ${thrustAccel}`
+            )
+            .join("\n")}`
+        }`);
     };
 
     for (
