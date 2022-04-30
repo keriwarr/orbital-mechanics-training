@@ -15,7 +15,7 @@ import {
   triggerGithubAuthentication,
   findGist,
   createGist,
-  updateLevel,
+  saveCodeAndResultsToGist,
 } from "../codesync";
 
 const LANDING_SPEED_THRESHOLD = 2;
@@ -101,7 +101,7 @@ export const Level0 = () => {
     > = [];
 
     if (githubAuthId && githubGistId) {
-      updateLevel(githubAuthId, githubGistId, 0, code, null);
+      saveCodeAndResultsToGist(githubAuthId, githubGistId, 0, code, null);
     }
 
     runSimulation({
@@ -151,7 +151,7 @@ export const Level0 = () => {
       1000 / FRAME_PER_SECOND
     );
 
-    // TODO(joey): Save code to Github.
+    // TODO(joey): Save code to Github?
 
     setHandleReset(() => () => {
       setRenderPosn(INITAL_POSN);
@@ -298,7 +298,13 @@ ${failedCases
 }`;
 
       if (githubAuthId && githubGistId) {
-        updateLevel(githubAuthId, githubGistId, 0, code, evaluationText);
+        saveCodeAndResultsToGist(
+          githubAuthId,
+          githubGistId,
+          0,
+          code,
+          evaluationText
+        );
       }
 
       setEvaluationResultText(evaluationText);

@@ -79,7 +79,7 @@ export async function createGist(authId: string) {
  * The readme is updated for every action, incase the readme has any changed
  * contents.
  */
-export async function updateLevel(
+export async function saveCodeAndResultsToGist(
   authId: string,
   gistId: string,
   levelNo: number,
