@@ -1,3 +1,5 @@
+import { drawASCIIElipse, drawASCIICircle } from "./ascii";
+
 export const Intro = () => (
   <div>
     <p className="text-base max-w-prose mb-4">
@@ -37,5 +39,15 @@ export const Intro = () => (
       You'll do fine. Get cracking, and remember, no funny business with that
       console, we'll be keeping an eye on you from the next room over.
     </p>
+
+    <pre className="leading-3" style={{ lineHeight: "0.625" }}>{drawASCIIElipse(20, 50, 1)}</pre>
+    <pre className="leading-3" style={{ lineHeight: "0.625" }}>{drawASCIICircle(20, 1)}</pre>
+    {/* <pre className="leading-3" style={{ lineHeight: "0.625rem" }}>{drawASCIICircle(20, 0.5)}</pre>
+    <br></br>
+    <pre className="leading-3" style={{ lineHeight: "0.625rem" }}>{drawASCIICircle(20, 1)}</pre>
+    <br></br>
+    <pre className="leading-3" style={{ lineHeight: "0.625rem" }}>{drawASCIICircle(20, 1.5)}</pre>
+    <br></br>
+    <pre className="leading-3" style={{ lineHeight: "0.625rem" }}>{drawASCIICircle(20, 2)}</pre> */}
   </div>
 );
