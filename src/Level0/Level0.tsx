@@ -20,6 +20,7 @@ import {
   getGistCodeFileName,
 } from "../codesync";
 import { Button } from "../components/Button";
+import { Link } from "react-router-dom";
 
 const LANDING_SPEED_THRESHOLD = 2;
 const GRAVITY_ACCEL = -9.8;
@@ -76,6 +77,10 @@ export const Level0 = () => {
   const [thrustAccel, setThrustAccel] = useState(THRUST_ACCEL);
 
   const [simulationRunning, setSimulationRunning] = useState(false);
+
+  const [levelComplete, setLevelComplete] = useState(
+    localStorage.getItem("level0-complete") === "true"
+  );
 
   const [githubAuthId, setGithubAuthId] = useState(
     localStorage.getItem("github-auth-id")
@@ -304,6 +309,11 @@ export const Level0 = () => {
 
       const success = numCrashed === 0 && numTimedOut === 0;
 
+      if (success) {
+        setLevelComplete(true);
+        localStorage.setItem("level0-complete", "true");
+      }
+
       const evaluationText = `${
         success
           ? `Congratulations! Your submission passed all ${NUM_VARIATIONS} test cases.`
@@ -526,8 +536,15 @@ ${failedCases
               )}
             </div>
           </div>
-          <div className="flex flex-row py-4 px-8">
+          <div className="flex flex-col py-4 px-8">
             <pre>{evaluationResultText}</pre>
+            {levelComplete && (
+              <div className="mt-2">
+                <Link to="/level/1/intro">
+                  <Button>Continue</Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
