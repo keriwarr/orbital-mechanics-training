@@ -10,8 +10,8 @@ const ASCII_BOX_INTERNAL_HEIGHT = 21;
 
 const NUM_MARKERS = 6;
 
-const EXPLODED_INDICATOR = "<span class='inline-block w-0'>🔥</span>"
-const ROCKET_INDICATOR = "<span class='inline-block w-0'>🚀</span>"
+const EXPLODED_INDICATOR = "<span class='inline-block w-0'>🔥</span>";
+const ROCKET_INDICATOR = "<span class='inline-block w-0'>🚀</span>";
 
 const getAsciiBox = ({
   posn,
@@ -35,7 +35,8 @@ const getAsciiBox = ({
     asciiString += " ".repeat(Math.floor((ASCII_BOX_INTERNAL_WIDTH - 1) / 2));
 
     if (i === rocketPos) {
-      asciiString += (isExploded ? EXPLODED_INDICATOR : ROCKET_INDICATOR) + "  ";
+      asciiString +=
+        (isExploded ? EXPLODED_INDICATOR : ROCKET_INDICATOR) + "  ";
     } else if (i === rocketPos + 1 && isFiring) {
       asciiString += EXPLODED_INDICATOR + "  ";
     } else {
@@ -51,9 +52,16 @@ const getAsciiBox = ({
       (ASCII_BOX_INTERNAL_HEIGHT - 1) / (NUM_MARKERS - 1)
     );
     if (i % markerFrequency === 0) {
-      asciiString += ` ${maxPosn -
-        (i / markerFrequency) * Math.floor(maxPosn / (NUM_MARKERS - 1))
-        }m`.padStart(`${maxPosn}`.length + 2, " ");
+      asciiString += ` ${
+        Math.floor(
+          ((maxPosn * (NUM_MARKERS - 1 - i / markerFrequency)) /
+            (NUM_MARKERS - 1)) *
+            100
+        ) / 100
+
+        // maxPosn -
+        // (i / markerFrequency) * Math.floor(maxPosn / (NUM_MARKERS - 1))
+      }m`.padStart(`${maxPosn}`.length + 2, " ");
     }
 
     asciiString += "\n";

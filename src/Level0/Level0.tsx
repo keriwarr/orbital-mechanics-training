@@ -32,10 +32,8 @@ export const preamble = `\
  * velo: in meters per second, floating point
  * posn: in meters, floating point, non-negative
  *
- * GRAVITY_ACCEL: in meters per second squared, ${GRAVITY_ACCEL} within sample simulation
- * THRUST_ACCEL: in meters per second squared, ${THRUST_ACCEL.toFixed(
-   2
- )} within sample simulation
+ * GRAVITY_ACCEL: in meters per second squared
+ * THRUST_ACCEL: in meters per second squared
  */
 function shouldFireBooster({time, velo, posn}, {GRAVITY_ACCEL, THRUST_ACCEL}) {`;
 const startingCode = `  return false;`;
@@ -73,6 +71,12 @@ export const Level0 = () => {
     string | null
   >(null);
 
+  const [initialPosn, setInitialPosn] = useState(INITAL_POSN);
+  const [gravityAccel, setGravityAccel] = useState(GRAVITY_ACCEL);
+  const [thrustAccel, setThrustAccel] = useState(THRUST_ACCEL);
+
+  const [simulationRunning, setSimulationRunning] = useState(false);
+
   const [githubAuthId, setGithubAuthId] = useState(
     localStorage.getItem("github-auth-id")
   );
@@ -107,12 +111,14 @@ export const Level0 = () => {
       saveCodeAndResultsToGist(githubAuthId, githubGistId, 0, code, null);
     }
 
+    setSimulationRunning(true);
+
     runSimulation({
       params: {
-        initialPosn: INITAL_POSN,
+        initialPosn,
         initialVelo: 0,
-        gravityAccel: GRAVITY_ACCEL,
-        thrustAccel: THRUST_ACCEL,
+        gravityAccel,
+        thrustAccel,
         touchdownSpeedThreshold: LANDING_SPEED_THRESHOLD,
         shouldFireBooster: getSandboxedFunction<ShouldFireBooster>(
           `${preamble}\n${code}\n${postamble}`
@@ -145,6 +151,8 @@ export const Level0 = () => {
         setResult(frameDatum.result);
         setResultTime(frameDatum.resultTimeMS / TICK_PER_SECOND);
         setResultSpeed(frameDatum.resultSpeed);
+        setIsFiring(false);
+        setSimulationRunning(false);
         window.clearInterval(renderIntervalHandler);
       }
     };
@@ -157,7 +165,7 @@ export const Level0 = () => {
     // TODO(joey): Save code to Github?
 
     setHandleReset(() => () => {
-      setRenderPosn(INITAL_POSN);
+      setRenderPosn(initialPosn);
       setIsFiring(false);
       setResult(null);
       setResultTime(null);
@@ -165,7 +173,15 @@ export const Level0 = () => {
       cancelSignalResolver();
       window.clearInterval(renderIntervalHandler);
     });
-  }, [code, handleReset, githubAuthId, githubGistId]);
+  }, [
+    handleReset,
+    githubAuthId,
+    githubGistId,
+    initialPosn,
+    gravityAccel,
+    thrustAccel,
+    code,
+  ]);
 
   const connectToGithub = useCallback(async () => {
     try {
@@ -407,7 +423,7 @@ ${failedCases
           if it returns true, the thruster will fire for that millisecond,
           otherwise free-fall
         </li>
-        <li>the barge will begin at an altitude of {INITAL_POSN}m</li>
+        <li>the barge will begin at an altitude of {initialPosn}m</li>
         <li>
           the barge must reach altitude 0m with a speed no greater than{" "}
           {LANDING_SPEED_THRESHOLD}m/s
@@ -419,12 +435,54 @@ ${failedCases
         </li>
       </ul>
       <div className="flex flex-row flex-grow">
-        <div className="w-64">
+        <div className="w-64 flex flex-col pr-4">
           <Simulation
             posn={renderPosn}
-            maxPosn={INITAL_POSN}
+            maxPosn={initialPosn}
             isFiring={isFiring}
             isExploded={result === "crashed"}
+          />
+          <label htmlFor="initialPosn">INITIAL_POSN:</label>
+          <input
+            className="dark:bg-slate-700 px-2 py-0.5 mb-2"
+            id="initialPosn"
+            type="number"
+            value={initialPosn}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              if (Number.isFinite(val) && val > 0) {
+                setInitialPosn(val);
+                if (!simulationRunning) {
+                  setRenderPosn(val);
+                }
+              }
+            }}
+          />
+          <label htmlFor="gravityAccel">GRAVITY_ACCEL:</label>
+          <input
+            className="dark:bg-slate-700 px-2 py-0.5 mb-2"
+            id="gravityAccel"
+            type="number"
+            value={gravityAccel}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              if (Number.isFinite(val) && val < 0) {
+                setGravityAccel(val);
+              }
+            }}
+          />
+          <label htmlFor="thrustAccel">THRUST_ACCEL:</label>
+          <input
+            className="dark:bg-slate-700 px-2 py-0.5 mb-2"
+            id="thrustAccel"
+            type="number"
+            value={thrustAccel}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              if (Number.isFinite(val) && val > 0) {
+                setThrustAccel(val);
+              }
+            }}
           />
         </div>
         <div className="flex flex-col w-full max-w-6xl">
