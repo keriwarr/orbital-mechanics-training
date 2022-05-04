@@ -93,12 +93,12 @@ export async function createGist(authId: string) {
  * The readme is updated for every action, incase the readme has any changed
  * contents.
  */
-export async function saveCodeAndResultsToGist(
+export async function _saveCodeAndResultsToGist(
   authId: string,
   gistId: string,
   levelNo: number,
   code: string,
-  results: string | null
+  results?: string | null
 ) {
   const body = {
     files: {

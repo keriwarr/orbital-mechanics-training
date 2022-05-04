@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Editor } from "../components/Editor";
 import { getSandboxedFunction } from "../util/sandbox";
-import { Simulation } from "./Simulation";
+import { Simulation } from "../components/Visualization1D";
 import {
   FRAME_PER_SECOND,
   runSimulation,
@@ -11,21 +11,18 @@ import {
   DEFAULT_TIMEOUT_SECONDS,
 } from "./engine";
 
-import {
-  triggerGithubAuthentication,
-  findGist,
-  createGist,
-  saveCodeAndResultsToGist,
-  getGist,
-  getGistCodeFileName,
-} from "../util/codesync";
 import { Button } from "../components/Button";
 import { Link } from "react-router-dom";
+import {
+  GithubIntegration,
+  useGithubContext,
+} from "../components/GithubIntegration";
 
 const LANDING_SPEED_THRESHOLD = 2;
-const GRAVITY_ACCEL = -9.8;
-const THRUST_ACCEL = -1 * GRAVITY_ACCEL + 1337 / DEFAULT_TIMEOUT_SECONDS;
-const INITAL_POSN = 100;
+const DEFAULT_GRAVITY_ACCEL = -9.8;
+const DEFAULT_THRUST_ACCEL =
+  -1 * DEFAULT_GRAVITY_ACCEL + 1337 / DEFAULT_TIMEOUT_SECONDS;
+const DEFAULT_INITAL_POSN = 100;
 
 export const preamble = `\
 /**
@@ -60,37 +57,36 @@ export const Level0 = () => {
   const [code, setCode] = useState(
     localStorage.getItem("level0-shouldFireBooster") ?? startingCode
   );
-  const [renderPosn, setRenderPosn] = useState(INITAL_POSN);
+
+  // vertical position of the rocket in the visualization
+  const [renderPosn, setRenderPosn] = useState(DEFAULT_INITAL_POSN);
+  // whether the barge appears to be firing it's rocket in the visualization
   const [isFiring, setIsFiring] = useState(false);
+
+  // results of the "test program" function
   const [result, setResult] = useState<
     "landed" | "crashed" | "timedout" | null
   >(null);
   const [resultTime, setResultTime] = useState<number | null>(null);
   const [resultSpeed, setResultSpeed] = useState<number | null>(null);
+
   const [handleReset, setHandleReset] = useState<(() => void) | null>(null);
+
   const [evaluationResultText, setEvaluationResultText] = useState<
     string | null
   >(null);
-
-  const [initialPosn, setInitialPosn] = useState(INITAL_POSN);
-  const [gravityAccel, setGravityAccel] = useState(GRAVITY_ACCEL);
-  const [thrustAccel, setThrustAccel] = useState(THRUST_ACCEL);
-
   const [simulationRunning, setSimulationRunning] = useState(false);
+
+  // configurable simulation params for the "test program" function
+  const [initialPosn, setInitialPosn] = useState(DEFAULT_INITAL_POSN);
+  const [gravityAccel, setGravityAccel] = useState(DEFAULT_GRAVITY_ACCEL);
+  const [thrustAccel, setThrustAccel] = useState(DEFAULT_THRUST_ACCEL);
 
   const [levelComplete, setLevelComplete] = useState(
     localStorage.getItem("level0-complete") === "true"
   );
 
-  const [githubAuthId, setGithubAuthId] = useState(
-    localStorage.getItem("github-auth-id")
-  );
-  // TODO(joey): Check if the githubAuthId is still valid?
-
-  const [githubGistId, setGithubGistId] = useState(
-    localStorage.getItem("github-gist-id")
-  );
-  // TODO(joey): Check if the gist is still valid?
+  const { trySaveCodeAndResultsToGist } = useGithubContext();
 
   useEffect(() => {
     localStorage.setItem("level0-shouldFireBooster", code);
@@ -112,9 +108,7 @@ export const Level0 = () => {
       | ({ type: "result" } & SimulationResultData)
     > = [];
 
-    if (githubAuthId && githubGistId) {
-      saveCodeAndResultsToGist(githubAuthId, githubGistId, 0, code, null);
-    }
+    trySaveCodeAndResultsToGist({ levelNo: 0, code });
 
     setSimulationRunning(true);
 
@@ -180,55 +174,12 @@ export const Level0 = () => {
     });
   }, [
     handleReset,
-    githubAuthId,
-    githubGistId,
     initialPosn,
     gravityAccel,
     thrustAccel,
     code,
+    trySaveCodeAndResultsToGist,
   ]);
-
-  const connectToGithub = useCallback(async () => {
-    try {
-      const authId = await triggerGithubAuthentication();
-
-      if (!authId) throw new Error("Missing authId!");
-
-      setGithubAuthId(authId);
-      localStorage.setItem("github-auth-id", authId);
-
-      let gist = await findGist(authId);
-
-      if (!gist) {
-        gist = await createGist(authId);
-      }
-
-      if (!gist) throw new Error("Failed to create gist");
-
-      setGithubGistId(gist.id);
-      localStorage.setItem("github-gist-id", gist.id);
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  const loadCodeFromGithub = useCallback(async () => {
-    try {
-      if (!githubAuthId) throw new Error("Missing auth ID!");
-      if (!githubGistId) throw new Error("Missing gist ID!");
-      const gist = await getGist(githubAuthId, githubGistId);
-
-      if (!gist) throw new Error("Failed to find gist");
-
-      setCode(gist.files[getGistCodeFileName({ levelNo: 0 })].content);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [githubAuthId, githubGistId]);
-
-  const openGithub = useCallback(() => {
-    window.open(`https://gist.github.com/${githubGistId}`);
-  }, [githubGistId]);
 
   const submitForEvaluation = useCallback(() => {
     setEvaluationResultText("Loading ...");
@@ -340,15 +291,11 @@ ${failedCases
   .join("\n")}`
 }`;
 
-      if (githubAuthId && githubGistId) {
-        saveCodeAndResultsToGist(
-          githubAuthId,
-          githubGistId,
-          0,
-          code,
-          evaluationText
-        );
-      }
+      trySaveCodeAndResultsToGist({
+        levelNo: 0,
+        code,
+        results: evaluationText,
+      });
 
       setEvaluationResultText(evaluationText);
     };
@@ -421,7 +368,7 @@ ${failedCases
         }
       }
     }
-  }, [code, githubAuthId, githubGistId]);
+  }, [code, trySaveCodeAndResultsToGist]);
 
   return (
     <div className="flex flex-col flex-grow">
@@ -507,19 +454,7 @@ ${failedCases
             <Button onClick={handleReset || (() => {})}>Abort</Button>
             <Button onClick={submitForEvaluation}>Submit for Evaluation</Button>
           </div>
-          <div className="flex flex-row px-8">
-            {(githubAuthId == null || githubGistId == null) && (
-              <Button onClick={connectToGithub}>Connect Github</Button>
-            )}
-            {githubAuthId != null && githubGistId != null && (
-              <>
-                <Button onClick={loadCodeFromGithub}>Load from Github</Button>
-                <button onClick={openGithub}>
-                  View code on Github &gt;&gt;
-                </button>
-              </>
-            )}
-          </div>
+          <GithubIntegration onReceiveCode={setCode} />
           <div className="flex flex-row pt-4 px-8">
             <div>
               {result === "landed" && <div>Success!</div>}
