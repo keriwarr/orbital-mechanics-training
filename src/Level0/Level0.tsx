@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Editor } from "./Editor";
-import { getSandboxedFunction } from "./sandbox";
+import { Editor } from "../components/Editor";
+import { getSandboxedFunction } from "../util/sandbox";
 import { Simulation } from "./Simulation";
 import {
   FRAME_PER_SECOND,
@@ -18,7 +18,7 @@ import {
   saveCodeAndResultsToGist,
   getGist,
   getGistCodeFileName,
-} from "../codesync";
+} from "../util/codesync";
 import { Button } from "../components/Button";
 import { Link } from "react-router-dom";
 
