@@ -17,6 +17,7 @@ import {
   GithubIntegration,
   useGithubContext,
 } from "../components/GithubIntegration";
+import { NUM_TEST_CASES, TEST_CASES } from "./testCases";
 
 const LANDING_SPEED_THRESHOLD = 2;
 const DEFAULT_GRAVITY_ACCEL = -9.8;
@@ -209,12 +210,6 @@ export const Level0 = () => {
       `${preamble}\nreturn false\n${postamble}`
     );
 
-    const POSN_VARIATIONS = 8;
-    const GRAVITY_VARIATIONS = 4;
-    const THRUST_VARIATIONS = 4;
-    const NUM_VARIATIONS =
-      POSN_VARIATIONS * GRAVITY_VARIATIONS * THRUST_VARIATIONS;
-
     const handleResults = () => {
       const numLanded = results.filter(
         ({ result }) => result === "landed"
@@ -267,7 +262,7 @@ export const Level0 = () => {
 
       const evaluationText = `${
         success
-          ? `Congratulations! Your submission passed all ${NUM_VARIATIONS} test cases.`
+          ? `Congratulations! Your submission passed all ${NUM_TEST_CASES} test cases.`
           : `Some test cases failed.`
       }
 Successful landings: ${numLanded}
@@ -300,74 +295,49 @@ ${failedCases
       setEvaluationResultText(evaluationText);
     };
 
-    for (
-      let initialPosn = 20;
-      initialPosn < 20 * 2 ** POSN_VARIATIONS;
-      initialPosn *= 2
-    ) {
-      const lowestGravity = Math.min(-2, -initialPosn / 128);
+    TEST_CASES.forEach((config) => {
+      const commonParams = {
+        ...config,
+        initialVelo: 0,
+        touchdownSpeedThreshold: LANDING_SPEED_THRESHOLD,
+        timeoutSeconds: 240,
+      };
 
-      for (
-        let gravityAccel = lowestGravity;
-        gravityAccel > lowestGravity * 2 ** GRAVITY_VARIATIONS;
-        gravityAccel *= 2
-      ) {
-        const lowestAccel = gravityAccel * -1.5;
-
-        for (
-          let thrustAccel = lowestAccel;
-          thrustAccel < gravityAccel * -1.5 * 2 ** THRUST_VARIATIONS;
-          thrustAccel *= 2
-        ) {
-          const config = {
-            initialPosn,
-            gravityAccel,
-            thrustAccel,
-          };
-          const commonParams = {
+      // check free-fall time
+      runSimulation({
+        params: {
+          ...commonParams,
+          shouldFireBooster: shouldNotFireBooster,
+        },
+        // eslint-disable-next-line no-loop-func
+        handleResult: (result) => {
+          freeFallResults.push({
             ...config,
-            initialVelo: 0,
-            touchdownSpeedThreshold: LANDING_SPEED_THRESHOLD,
-            timeoutSeconds: 240,
-          };
-
-          // check free-fall time
-          runSimulation({
-            params: {
-              ...commonParams,
-              shouldFireBooster: shouldNotFireBooster,
-            },
-            // eslint-disable-next-line no-loop-func
-            handleResult: (result) => {
-              freeFallResults.push({
-                ...config,
-                ...result,
-              });
-              resultCount += 1;
-              if (resultCount === NUM_VARIATIONS * 2) {
-                handleResults();
-              }
-            },
+            ...result,
           });
+          resultCount += 1;
+          if (resultCount === NUM_TEST_CASES * 2) {
+            handleResults();
+          }
+        },
+      });
 
-          // check actual time
-          runSimulation({
-            params: { ...commonParams, shouldFireBooster },
-            // eslint-disable-next-line no-loop-func
-            handleResult: (result) => {
-              results.push({
-                ...config,
-                ...result,
-              });
-              resultCount += 1;
-              if (resultCount === NUM_VARIATIONS * 2) {
-                handleResults();
-              }
-            },
+      // check actual time
+      runSimulation({
+        params: { ...commonParams, shouldFireBooster },
+        // eslint-disable-next-line no-loop-func
+        handleResult: (result) => {
+          results.push({
+            ...config,
+            ...result,
           });
-        }
-      }
-    }
+          resultCount += 1;
+          if (resultCount === NUM_TEST_CASES * 2) {
+            handleResults();
+          }
+        },
+      });
+    });
   }, [code, trySaveCodeAndResultsToGist]);
 
   return (
