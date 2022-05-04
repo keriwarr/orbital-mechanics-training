@@ -3,13 +3,12 @@ import { Editor } from "../components/Editor";
 import { getSandboxedFunction } from "../util/sandbox";
 import { Simulation } from "../components/Visualization1D";
 import {
-  FRAME_PER_SECOND,
-  runSimulation,
   SimulationFrameData,
   SimulationResultData,
-  TICK_PER_SECOND,
   DEFAULT_TIMEOUT_SECONDS,
-} from "./engine";
+  ShouldFireBooster,
+} from "./simulation";
+import { level1Simulation as runSimulation } from "./simulation";
 
 import { Button } from "../components/Button";
 import { Link } from "react-router-dom";
@@ -18,6 +17,10 @@ import {
   useGithubContext,
 } from "../components/GithubIntegration";
 import { NUM_TEST_CASES, TEST_CASES } from "./testCases";
+import {
+  FRAME_PER_SECOND,
+  TICK_PER_SECOND,
+} from "../util/cancelableBatchSimulation";
 
 const LANDING_SPEED_THRESHOLD = 2;
 const DEFAULT_GRAVITY_ACCEL = -9.8;
@@ -37,18 +40,6 @@ export const preamble = `\
 function shouldFireBooster({time, velo, posn}, {GRAVITY_ACCEL, THRUST_ACCEL}) {`;
 const startingCode = `  return false;`;
 export const postamble = "}";
-
-export type ShouldFireBooster = (
-  args: {
-    time: number;
-    velo: number;
-    posn: number;
-  },
-  constants: {
-    GRAVITY_ACCEL: number;
-    THRUST_ACCEL: number;
-  }
-) => unknown;
 
 export const Level0 = () => {
   // FIXME(joey): Consider loading the code from gist. It might be best to put
@@ -114,21 +105,21 @@ export const Level0 = () => {
     setSimulationRunning(true);
 
     runSimulation({
-      params: {
-        initialPosn,
-        initialVelo: 0,
-        gravityAccel,
-        thrustAccel,
-        touchdownSpeedThreshold: LANDING_SPEED_THRESHOLD,
-        shouldFireBooster: getSandboxedFunction<ShouldFireBooster>(
-          `${preamble}\n${code}\n${postamble}`
-        ),
-      },
+      initialPosn,
+      initialVelo: 0,
+      gravityAccel,
+      thrustAccel,
+      touchdownSpeedThreshold: LANDING_SPEED_THRESHOLD,
+      shouldFireBooster: getSandboxedFunction<ShouldFireBooster>(
+        `${preamble}\n${code}\n${postamble}`
+      ),
+    })({
+      // params: ,
       cancelSignal,
       handleFrameData: (frameDatum) => {
         frameData.push({ type: "frame", ...frameDatum });
       },
-      handleResult: (result) => {
+      handleResultData: (result) => {
         frameData.push({
           type: "result",
           ...result,
@@ -305,12 +296,11 @@ ${failedCases
 
       // check free-fall time
       runSimulation({
-        params: {
-          ...commonParams,
-          shouldFireBooster: shouldNotFireBooster,
-        },
+        ...commonParams,
+        shouldFireBooster: shouldNotFireBooster,
+      })({
         // eslint-disable-next-line no-loop-func
-        handleResult: (result) => {
+        handleResultData: (result) => {
           freeFallResults.push({
             ...config,
             ...result,
@@ -323,10 +313,9 @@ ${failedCases
       });
 
       // check actual time
-      runSimulation({
-        params: { ...commonParams, shouldFireBooster },
+      runSimulation({ ...commonParams, shouldFireBooster })({
         // eslint-disable-next-line no-loop-func
-        handleResult: (result) => {
+        handleResultData: (result) => {
           results.push({
             ...config,
             ...result,
