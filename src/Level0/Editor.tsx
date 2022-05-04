@@ -1,13 +1,16 @@
 import CodeEditor from "@uiw/react-textarea-code-editor";
 import { MouseEvent, useCallback, useRef } from "react";
-import { preamble, postamble } from "./Level0";
 
 export const Editor = ({
   code,
   setCode,
+  preamble,
+  postamble,
 }: {
   code: string;
   setCode: (code: string) => void;
+  preamble: string;
+  postamble: string;
 }) => {
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
 

@@ -496,7 +496,12 @@ ${failedCases
           />
         </div>
         <div className="flex flex-col w-full max-w-6xl">
-          <Editor code={code} setCode={setCode} />
+          <Editor
+            code={code}
+            setCode={setCode}
+            preamble={preamble}
+            postamble={postamble}
+          />
           <div className="flex flex-row pt-4 px-8">
             <Button onClick={runSimuation}>Test Program</Button>
             <Button onClick={handleReset || (() => {})}>Abort</Button>

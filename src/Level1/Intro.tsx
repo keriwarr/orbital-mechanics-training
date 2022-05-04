@@ -38,6 +38,9 @@ export const Intro = () => {
         we'll get to the 2D simulations soon. Now get back in the computer lab,
         we're not paying you to ask questions.
       </p>
+      <p className="text-base max-w-prose mb-4">
+        P.S. We've upgraded the visualization - let us know what you think.
+      </p>
       <div className="flex flex-row">
         <Link to="/level/1">
           <Button>Continue</Button>
