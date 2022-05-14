@@ -17,71 +17,71 @@ export const makeCancelableBatchSimulation =
     checkForResult: (args: { tick: number }) => ResultData | undefined;
     getFrameData?: (args: { frameTick: number }) => FrameData;
   }) =>
-    ({
-      handleFrameData,
-      handleResultData: handleResult,
-      cancelSignal,
-    }: {
-      handleResultData: (args: ResultData) => void;
-      handleFrameData?: (args: FrameData) => void;
-      cancelSignal?: Promise<void>;
-    }) => {
-      let tick = 0;
-      let frameTick = 0;
-      let frameCount = 1; // represents the pre-rendered initial condition
+  ({
+    handleFrameData,
+    handleResultData: handleResult,
+    cancelSignal,
+  }: {
+    handleResultData: (args: ResultData) => void;
+    handleFrameData?: (args: FrameData) => void;
+    cancelSignal?: Promise<void>;
+  }) => {
+    let tick = 0;
+    let frameTick = 0;
+    let frameCount = 1; // represents the pre-rendered initial condition
 
-      let timeoutHandle: number | null = null;
+    let timeoutHandle: number | null = null;
 
-      const simulateBatch = () => {
-        const startTimeMs = performance.now();
+    const simulateBatch = () => {
+      const startTimeMs = performance.now();
 
-        while (true) {
-          simulateOneTick({ tick });
+      while (true) {
+        simulateOneTick({ tick });
 
-          tick += 1;
-          frameTick += 1;
+        tick += 1;
+        frameTick += 1;
 
-          const result = checkForResult({ tick });
+        const result = checkForResult({ tick });
 
-          if (result) {
-            handleResult(result);
-            if (timeoutHandle) {
-              window.clearTimeout(timeoutHandle);
-            }
-            return;
+        if (result) {
+          handleResult(result);
+          if (timeoutHandle) {
+            window.clearTimeout(timeoutHandle);
           }
-
-          if (getFrameData && tick > frameCount * TICK_PER_FRAME) {
-            const frameData = getFrameData({ frameTick });
-
-            if (handleFrameData) {
-              handleFrameData(frameData);
-            }
-
-            frameTick = 0;
-            frameCount += 1;
-          }
-
-          if (tick % 100 === 0) {
-            if (performance.now() - startTimeMs > SIMULATION_CHUNK_MS) {
-              break;
-            }
-          }
+          return;
         }
 
-        if (timeoutHandle !== null) {
-          timeoutHandle = window.setTimeout(
-            simulateBatch,
-            SIMULATION_CHUNK_INTERVAL_MS
-          );
-        }
-      };
+        if (getFrameData && tick > frameCount * TICK_PER_FRAME) {
+          const frameData = getFrameData({ frameTick });
 
-      timeoutHandle = window.setTimeout(simulateBatch, 0);
+          if (handleFrameData) {
+            handleFrameData(frameData);
+          }
 
-      cancelSignal?.then(() => {
-        if (timeoutHandle !== null) {
-          window.clearTimeout(timeoutHandle);
+          frameTick = 0;
+          frameCount += 1;
         }
-      });
+
+        if (tick % 100 === 0) {
+          if (performance.now() - startTimeMs > SIMULATION_CHUNK_MS) {
+            break;
+          }
+        }
+      }
+
+      if (timeoutHandle !== null) {
+        timeoutHandle = window.setTimeout(
+          simulateBatch,
+          SIMULATION_CHUNK_INTERVAL_MS
+        );
+      }
     };
+
+    timeoutHandle = window.setTimeout(simulateBatch, 0);
+
+    cancelSignal?.then(() => {
+      if (timeoutHandle !== null) {
+        window.clearTimeout(timeoutHandle);
+      }
+    });
+  };

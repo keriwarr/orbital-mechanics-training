@@ -8,7 +8,7 @@ import {
   DEFAULT_TIMEOUT_SECONDS,
   ShouldFireBooster,
 } from "./simulation";
-import { level1Simulation as runSimulation } from "./simulation";
+import { level0Simulation as runSimulation } from "./simulation";
 
 import { Button } from "../components/Button";
 import { Link } from "react-router-dom";
@@ -410,7 +410,6 @@ ${failedCases
           />
           <div className="flex flex-row pt-4 px-8">
             <Button onClick={runSimuation}>Test Program</Button>
-            <Button onClick={handleReset || (() => {})}>Abort</Button>
             <Button onClick={submitForEvaluation}>Submit for Evaluation</Button>
           </div>
           <GithubIntegration onReceiveCode={setCode} />

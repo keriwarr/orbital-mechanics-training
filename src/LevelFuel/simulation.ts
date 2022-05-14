@@ -1,8 +1,4 @@
-import {
-  makeCancelableBatchSimulation,
-  TICK_PER_MS,
-  TICK_PER_SECOND,
-} from "../util/cancelableBatchSimulation";
+import { makeCancelableBatchSimulation, TICK_PER_MS, TICK_PER_SECOND } from "../util/cancelableBatchSimulation";
 
 export type ShouldFireBooster = (
   args: {
@@ -16,8 +12,10 @@ export type ShouldFireBooster = (
   }
 ) => unknown;
 
+
 export const DEFAULT_TIMEOUT_SECONDS = 60;
 const IS_FIRING_THRESHOLD = 0.5; // what portion of 'fires' per frame should display a fire emojus?
+
 
 const FPErrorThreshold = 10 ** 6;
 function roundFPError(posn: number) {
@@ -30,18 +28,20 @@ export type SimulationFrameData = {
 };
 
 export type SimulationResultData = {
-  result: "landed" | "crashed" | "timedout";
+  result: 'landed' | 'crashed' | 'timedout';
   resultTimeMS: number;
   resultSpeed: number;
   totalFireCount: number;
-  posn: number;
+  posn: number
 };
 
-export const level0Simulation = ({
+export const levelFuelSimulation = ({
   initialPosn,
   initialVelo,
   gravityAccel,
-  thrustAccel,
+  dryMass,
+  fuelMass,
+  fuelConsumption,
   touchdownSpeedThreshold,
   shouldFireBooster,
   timeoutSeconds = DEFAULT_TIMEOUT_SECONDS,
@@ -49,7 +49,9 @@ export const level0Simulation = ({
   initialPosn: number;
   initialVelo: number;
   gravityAccel: number;
-  thrustAccel: number;
+  dryMass: number;
+  fuelMass: number;
+  fuelConsumption: number;
   touchdownSpeedThreshold: number;
   shouldFireBooster: ShouldFireBooster;
   timeoutSeconds?: number;
@@ -63,24 +65,24 @@ export const level0Simulation = ({
 
   return makeCancelableBatchSimulation({
     simulateOneTick: ({ tick }) => {
-      velo += gravityAccel / TICK_PER_SECOND;
+      // velo += gravityAccel / TICK_PER_SECOND;
 
-      try {
-        if (
-          shouldFireBooster(
-            { time: tick, posn, velo },
-            { GRAVITY_ACCEL: gravityAccel, THRUST_ACCEL: thrustAccel }
-          )
-        ) {
-          velo += thrustAccel / TICK_PER_SECOND;
-          fireCount += 1;
-          frameFireCount += 1;
-        }
-      } catch (e) {
-        console.error(e);
-      }
+      // try {
+      //   if (
+      //     shouldFireBooster(
+      //       { time: tick, posn, velo },
+      //       { GRAVITY_ACCEL: gravityAccel, THRUST_ACCEL: thrustAccel }
+      //     )
+      //   ) {
+      //     velo += thrustAccel / TICK_PER_SECOND;
+      //     fireCount += 1;
+      //     frameFireCount += 1;
+      //   }
+      // } catch (e) {
+      //   console.error(e);
+      // }
 
-      posn += velo / TICK_PER_SECOND;
+      // posn += velo / TICK_PER_SECOND;
     },
     checkForResult: ({ tick }) => {
       const roundedPosn = roundFPError(posn);

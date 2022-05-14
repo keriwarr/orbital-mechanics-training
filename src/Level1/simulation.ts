@@ -1,21 +1,22 @@
-import { makeCancelableBatchSimulation, TICK_PER_MS, TICK_PER_SECOND } from "../util/cancelableBatchSimulation";
+import {
+  makeCancelableBatchSimulation,
+  TICK_PER_MS,
+  TICK_PER_SECOND,
+} from "../util/cancelableBatchSimulation";
 
 export type ShouldFireBooster = (
   args: {
     time: number;
-    velo: number;
-    posn: number;
+    velo: { x: number; y: number };
+    posn: { x: number; y: number };
   },
   constants: {
-    GRAVITY_ACCEL: number;
     THRUST_ACCEL: number;
   }
 ) => unknown;
 
-
 export const DEFAULT_TIMEOUT_SECONDS = 60;
 const IS_FIRING_THRESHOLD = 0.5; // what portion of 'fires' per frame should display a fire emojus?
-
 
 const FPErrorThreshold = 10 ** 6;
 function roundFPError(posn: number) {
@@ -28,96 +29,113 @@ export type SimulationFrameData = {
 };
 
 export type SimulationResultData = {
-  result: 'landed' | 'crashed' | 'timedout';
+  result: "landed" | "crashed" | "timedout";
   resultTimeMS: number;
   resultSpeed: number;
   totalFireCount: number;
-  posn: number
+  posn: number;
 };
 
-export const level0Simulation = ({
+export const level1Simulation = ({
   initialPosn,
   initialVelo,
-  gravityAccel,
-  dryMass,
-  fuelMass,
-  fuelConsumption,
+  planetPosn,
+  planetRadius,
+  planetGravity,
+  thrustAccel,
   touchdownSpeedThreshold,
   shouldFireBooster,
   timeoutSeconds = DEFAULT_TIMEOUT_SECONDS,
 }: {
-  initialPosn: number;
-  initialVelo: number;
-  gravityAccel: number;
-  dryMass: number;
-  fuelMass: number;
-  fuelConsumption: number;
+  initialPosn: { x: number; y: number };
+  initialVelo: { x: number; y: number };
+  planetPosn: { x: number; y: number };
+  planetRadius: number;
+  planetGravity: number; // what are the units??
+  thrustAccel: number;
   touchdownSpeedThreshold: number;
   shouldFireBooster: ShouldFireBooster;
   timeoutSeconds?: number;
 }) => {
   const TIMEOUT_TICKS = TICK_PER_SECOND * timeoutSeconds;
-  let posn = initialPosn;
-  let velo = initialVelo;
-  let fireCount = 0;
-
-  let frameFireCount = 0;
+  let posnx = initialPosn.x;
+  let posny = initialPosn.y;
+  let velox = initialVelo.x;
+  let veloy = initialVelo.y;
 
   return makeCancelableBatchSimulation({
     simulateOneTick: ({ tick }) => {
-      // velo += gravityAccel / TICK_PER_SECOND;
+      const distancex = planetPosn.x - posnx;
+      const distancey = planetPosn.y - posny;
 
-      // try {
-      //   if (
-      //     shouldFireBooster(
-      //       { time: tick, posn, velo },
-      //       { GRAVITY_ACCEL: gravityAccel, THRUST_ACCEL: thrustAccel }
-      //     )
-      //   ) {
-      //     velo += thrustAccel / TICK_PER_SECOND;
-      //     fireCount += 1;
-      //     frameFireCount += 1;
-      //   }
-      // } catch (e) {
-      //   console.error(e);
-      // }
+      const distanceFromPlanetCenter = Math.sqrt(
+        Math.abs(distancex) ** 2 + Math.abs(distancey) ** 2
+      );
+      const effectiveGravity =
+        planetGravity * (planetRadius / distanceFromPlanetCenter) ** 2;
 
-      // posn += velo / TICK_PER_SECOND;
-    },
-    checkForResult: ({ tick }) => {
-      const roundedPosn = roundFPError(posn);
-      const roundedVelo = roundFPError(velo);
+      const { gravityx, gravityy } = (() => {
+        if (distancey === 0) return { gravityx: effectiveGravity, gravityy: 0 };
 
-      if (tick < TIMEOUT_TICKS && roundedPosn > 0) {
-        return;
-      }
+        const distanceRatio = distancex / distancey;
 
-      const result = (() => {
-        if (tick >= TIMEOUT_TICKS) return "timedout";
-        if (Math.abs(roundedVelo) <= touchdownSpeedThreshold) return "landed";
-        return "crashed";
+        const gravityy = effectiveGravity / Math.sqrt(distanceRatio ** 2 + 1);
+        const gravityx = distanceRatio * gravityy;
+        return {
+          gravityx: Math.sign(distancex) * Math.abs(gravityx),
+          gravityy: Math.sign(distancey) * Math.abs(gravityy),
+        };
       })();
 
-      const resultData: SimulationResultData = {
-        result,
-        resultTimeMS: tick / TICK_PER_MS,
-        totalFireCount: fireCount,
-        resultSpeed: Math.abs(roundedVelo),
-        posn: roundedPosn,
-      };
+      velox += gravityx / TICK_PER_SECOND;
+      veloy += gravityy / TICK_PER_SECOND;
 
-      return resultData;
+      try {
+        const radians = shouldFireBooster(
+          {
+            time: tick,
+            posn: { x: posnx, y: posny },
+            velo: { x: velox, y: veloy },
+          },
+          { THRUST_ACCEL: thrustAccel }
+        );
+        if (typeof radians === "number") {
+          velox += (Math.cos(radians) * thrustAccel) / TICK_PER_SECOND;
+          veloy += (Math.sin(radians) * thrustAccel) / TICK_PER_SECOND;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      posnx += velox / TICK_PER_SECOND;
+      posny += veloy / TICK_PER_SECOND;
+
+      if (tick % 1000 === 0) {
+        console.table({
+          tick,
+          distancex,
+          distancey,
+          distanceFromPlanetCenter,
+          effectiveGravity,
+          gravityx,
+          gravityy,
+          velox,
+          veloy,
+        });
+      }
+    },
+    checkForResult: ({ tick }) => {
+      if (tick >= TIMEOUT_TICKS) {
+        return {
+          result: "timedout",
+        };
+      }
     },
     getFrameData: ({ frameTick }) => {
-      const isFiring = frameFireCount / frameTick > IS_FIRING_THRESHOLD;
-
-      frameFireCount = 0;
-
-      const frameData: SimulationFrameData = {
-        posn,
-        isFiring,
+      return {
+        posnx,
+        posny,
       };
-      return frameData;
     },
   });
 };

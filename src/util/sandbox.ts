@@ -12,7 +12,7 @@ export const getSandboxedFunction = <F extends Function>(code: string): F => {
 
     const script = doc.createElement('script');
     script.appendChild(doc.createTextNode(
-        'window.result = (function(){"use strict";return (' + code + ');})()'
+        'with (Math) { window.result = (function(){"use strict"; return (' + code + ');})() }'
     ));
     doc.body.appendChild(script);
     const result = (win as any).result;
