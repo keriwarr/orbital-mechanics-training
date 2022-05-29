@@ -12,9 +12,7 @@ export const Level1 = () => {
     if (runningEffectRef.current) return;
     runningEffectRef.current = true;
 
-    let frameData: Array<
-      { posnx: number; posny: number } | { result: string }
-    > = [];
+    let frameData: Array<{ x: number; y: number } | { result: string }> = [];
 
     level1Simulation({
       initialPosn: { x: 100, y: 100 },
@@ -24,7 +22,7 @@ export const Level1 = () => {
       planetPosn: { x: 10, y: 10 },
       planetRadius: 2,
       touchdownSpeedThreshold: -2,
-      timeoutSeconds: 4,
+      timeoutSeconds: 100,
 
       // touchdownSpeedThreshold: LANDING_SPEED_THRESHOLD,
       // shouldFireBooster: getSandboxedFunction(`() => PI`),
@@ -49,7 +47,7 @@ export const Level1 = () => {
         return;
       }
 
-      setRenderPosn({ x: frameDatum.posnx, y: frameDatum.posny });
+      setRenderPosn(frameDatum);
     };
 
     const renderIntervalHandler = setInterval(
