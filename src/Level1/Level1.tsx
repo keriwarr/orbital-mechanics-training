@@ -22,7 +22,7 @@ export const Level1 = () => {
       planetPosn: { x: 10, y: 10 },
       planetRadius: 2,
       touchdownSpeedThreshold: -2,
-      timeoutSeconds: 100,
+      timeoutSeconds: 7.490934188100428 * 1,
 
       // touchdownSpeedThreshold: LANDING_SPEED_THRESHOLD,
       // shouldFireBooster: getSandboxedFunction(`() => PI`),
