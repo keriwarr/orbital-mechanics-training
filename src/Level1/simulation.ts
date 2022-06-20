@@ -91,6 +91,198 @@ const getEccentricAnomaly = ({
   return eccentricAnomaly;
 };
 
+// implied planet mass
+// =
+// 2_996_703_626_011_387
+// ~=
+// 3 * 10 ** 15
+
+const calculateStepWithEllipticalOrbit = ({
+  p,
+  planetGravity,
+  planetPosn,
+  planetRadius,
+  velo,
+  tick,
+}: {
+  velo: Vector;
+  p: Vector;
+  planetPosn: Vector;
+  planetGravity: number;
+  planetRadius: number;
+  tick: number;
+}) => {
+  const relativePosition = sub(p, planetPosn);
+
+  const distance = length(relativePosition);
+  const speed = length(velo);
+  const orbitalVelocity = perpendicular(velo, relativePosition);
+  const orbitalSpeed = length(orbitalVelocity);
+
+  // const effectiveGravity = planetGravity * (planetRadius / distance) ** 2;
+  const LOG_INTERVAL = 1000;
+  // const GRAVITATIONAL_CONSTANT = 0.000_000_000_066_74;
+
+  const standardGravitationalParameter = planetGravity * planetRadius ** 2;
+
+  // const impliedMass =
+  //   standardGravitationalParameter / GRAVITATIONAL_CONSTANT;
+
+  const specificOrbitalEnergy =
+    speed ** 2 / 2 - standardGravitationalParameter / distance;
+
+  const specificAngularMomentum = orbitalSpeed * distance;
+
+  const eccentricity = Math.sqrt(
+    1 +
+      (2 * specificOrbitalEnergy * specificAngularMomentum ** 2) /
+        standardGravitationalParameter ** 2
+  );
+
+  const semiMajorAxis =
+    -standardGravitationalParameter / (2 * specificOrbitalEnergy);
+
+  const periapsis = semiMajorAxis * (1 - eccentricity);
+  const apoapsis = semiMajorAxis * (1 + eccentricity);
+
+  const meanMotion = Math.sqrt(
+    standardGravitationalParameter / semiMajorAxis ** 3
+  ); // units: s^-1
+
+  const meanAnomalyDelta = meanMotion / TICK_PER_SECOND;
+
+  const orbitalPeriod =
+    2 *
+    Math.PI *
+    Math.sqrt(semiMajorAxis ** 3 / standardGravitationalParameter);
+
+  const eccentricityVector = sub(
+    scale(
+      relativePosition,
+      dotProduct(velo, velo) / standardGravitationalParameter -
+        1 / length(relativePosition)
+    ),
+    scale(
+      velo,
+      dotProduct(relativePosition, velo) / standardGravitationalParameter
+    )
+  );
+  const eccentricityVectorLength = length(eccentricityVector);
+
+  const relativEmptyFocusPosition = scale(
+    eccentricityVector,
+    -2 * semiMajorAxis
+  );
+
+  const constant =
+    length(sub(relativEmptyFocusPosition, relativePosition)) +
+    length(relativePosition); // calculate ellpise as the points where this = 2a
+
+  const rawTrueAnomaly = angle(eccentricityVector, relativePosition);
+  const rdotv = dotProduct(relativePosition, velo);
+  const trueAnomaly = rdotv < 0 ? Math.PI * 2 - rawTrueAnomaly : rawTrueAnomaly; // 0/2pi = pericenter
+
+  const meanAnomalyComponent =
+    (Math.sqrt(1 - eccentricity ** 2) * Math.sin(trueAnomaly)) /
+    (1 + eccentricity * Math.cos(trueAnomaly));
+
+  const meanAnomaly = boundAngle(
+    Math.atan2(
+      meanAnomalyComponent,
+      (eccentricity + Math.cos(trueAnomaly)) /
+        (1 + eccentricity * Math.cos(trueAnomaly))
+    ) -
+      eccentricity * meanAnomalyComponent
+  );
+
+  const nextMeanAnomaly = boundAngle(meanAnomaly + meanAnomalyDelta);
+
+  const nextEccentricAnomaly = getEccentricAnomaly({
+    meanAnomaly: nextMeanAnomaly,
+    eccentricity,
+  });
+
+  // TODO: use universal variable formulation
+  if (nextEccentricAnomaly === null) {
+    console.error("eccentricity > 1 ???");
+    return {
+      nextPosition: { x: Infinity, y: Infinity },
+      nextVelocity: { x: Infinity, y: Infinity },
+    };
+  }
+  const nextTrueAnomaly =
+    2 *
+    Math.atan2(
+      Math.sin(nextEccentricAnomaly / 2) * Math.sqrt(1 + eccentricity),
+      Math.cos(nextEccentricAnomaly / 2) * Math.sqrt(1 - eccentricity)
+    );
+  const nextDistance =
+    semiMajorAxis * (1 - eccentricity * Math.cos(nextEccentricAnomaly));
+
+  const nextFramePosition = scale(
+    { x: Math.cos(nextTrueAnomaly), y: Math.sin(nextTrueAnomaly) },
+    nextDistance
+  );
+  const nextFrameVelocity = scale(
+    {
+      x: Math.sin(nextEccentricAnomaly) * -1,
+      y: Math.cos(nextEccentricAnomaly) * Math.sqrt(1 - eccentricity ** 2),
+    },
+    Math.sqrt(standardGravitationalParameter * semiMajorAxis) / nextDistance
+  );
+  const frameAngle = angle(eccentricityVector, { x: 1, y: 0 });
+
+  const nextRelativePosition = rotate(nextFramePosition, -frameAngle);
+  const nextPosition = add(nextRelativePosition, planetPosn);
+  const nextVelocity = rotate(nextFrameVelocity, -frameAngle);
+
+  if (
+    tick % LOG_INTERVAL ===
+    0
+    // ||
+    // (speed > 100 && tick % 50 === 0) ||
+    // (speed > 200 && tick % 5 === 0)
+  ) {
+    console.log("\n\n");
+    console.log(tick);
+    console.log("INVARIANTS:");
+    console.table({
+      standardGravitationalParameter,
+      specificOrbitalEnergy,
+      specificAngularMomentum,
+      eccentricity,
+      semiMajorAxis,
+      periapsis,
+      apoapsis,
+      meanMotion,
+      orbitalPeriod,
+      constant,
+      eccentricityVectorLength,
+      frameAngle,
+    });
+    console.table({
+      eccentricityVector,
+      relativEmptyFocusPosition,
+    });
+
+    console.log("\nVARIANTS:");
+    console.table({
+      posn: p,
+      velo,
+      relativePosition,
+    });
+    console.table({
+      speed,
+      orbitalSpeed,
+      distance,
+      trueAnomaly,
+      meanAnomaly,
+    });
+  }
+
+  return { nextPosition, nextVelocity };
+};
+
 export const level1Simulation = ({
   initialPosn,
   initialVelo,
@@ -142,199 +334,16 @@ export const level1Simulation = ({
         return { x: 0, y: 0 };
       })();
 
-      const getGravity = (p: Vector, log: boolean) => {
+      const getGravity = (p: Vector) => {
         const relativePosition = sub(p, planetPosn);
-
         const distance = length(relativePosition);
-        const speed = length(velo);
-        const orbitalVelocity = perpendicular(velo, relativePosition);
-        const orbitalSpeed = length(orbitalVelocity);
-
         const effectiveGravity = planetGravity * (planetRadius / distance) ** 2;
-
-        if (log) {
-          const LOG_INTERVAL = 500;
-          // const GRAVITATIONAL_CONSTANT = 0.000_000_000_066_74;
-
-          const standardGravitationalParameter =
-            planetGravity * planetRadius ** 2;
-
-          // const impliedMass =
-          //   standardGravitationalParameter / GRAVITATIONAL_CONSTANT;
-
-          const specificOrbitalEnergy =
-            speed ** 2 / 2 - standardGravitationalParameter / distance;
-
-          const specificAngularMomentum = orbitalSpeed * distance;
-
-          const eccentricity = Math.sqrt(
-            1 +
-              (2 * specificOrbitalEnergy * specificAngularMomentum ** 2) /
-                standardGravitationalParameter ** 2
-          );
-
-          const semiMajorAxis =
-            -standardGravitationalParameter / (2 * specificOrbitalEnergy);
-
-          // const periapsis = semiMajorAxis * (1 - eccentricity);
-          // const apoapsis = semiMajorAxis * (1 + eccentricity);
-
-          const meanMotion = Math.sqrt(
-            standardGravitationalParameter / semiMajorAxis ** 3
-          ); // units: s^-1
-
-          const meanAnomalyDelta =
-            meanMotion / (TICK_PER_SECOND / LOG_INTERVAL);
-
-          // const orbitalPeriod =
-          //   2 *
-          //   Math.PI *
-          //   Math.sqrt(semiMajorAxis ** 3 / standardGravitationalParameter);
-
-          const eccentricityVector = sub(
-            scale(
-              relativePosition,
-              dotProduct(velo, velo) / standardGravitationalParameter -
-                1 / length(relativePosition)
-            ),
-            scale(
-              velo,
-              dotProduct(relativePosition, velo) /
-                standardGravitationalParameter
-            )
-          );
-          // const eccentricityVectorLength = length(eccentricityVector);
-
-          // const relativEmptyFocusPosition = scale(
-          //   eccentricityVector,
-          //   -2 * semiMajorAxis
-          // );
-
-          // const constant =
-          //   length(sub(relativEmptyFocusPosition, relativePosition)) +
-          //   length(relativePosition); // calculate ellpise as the points where this = 2a
-
-          const rawTrueAnomaly = angle(eccentricityVector, relativePosition);
-          const rdotv = dotProduct(relativePosition, velo);
-          const trueAnomaly =
-            rdotv < 0 ? Math.PI * 2 - rawTrueAnomaly : rawTrueAnomaly; // 0/2pi = pericenter
-
-          const meanAnomalyComponent =
-            (Math.sqrt(1 - eccentricity ** 2) * Math.sin(trueAnomaly)) /
-            (1 + eccentricity * Math.cos(trueAnomaly));
-
-          const meanAnomaly = boundAngle(
-            Math.atan2(
-              meanAnomalyComponent,
-              (eccentricity + Math.cos(trueAnomaly)) /
-                (1 + eccentricity * Math.cos(trueAnomaly))
-            ) -
-              eccentricity * meanAnomalyComponent
-          );
-
-          // const eccentricAnomaly2 = Math.acos(
-          //   (eccentricity + Math.cos(trueAnomaly)) /
-          //     (1 + eccentricity * Math.cos(trueAnomaly))
-          // );
-          // const meanAnomaly2 =
-          //   eccentricAnomaly2 - eccentricity * Math.sin(eccentricAnomaly2);
-
-          const nextMeanAnomaly = boundAngle(meanAnomaly + meanAnomalyDelta);
-
-          const nextEccentricAnomaly = getEccentricAnomaly({
-            meanAnomaly: nextMeanAnomaly,
-            eccentricity,
-          });
-
-          // TODO: wtf to do if it's hyperbolic
-          if (nextEccentricAnomaly === null) {
-            return rescale(relativePosition, -effectiveGravity);
-          }
-          const nextTrueAnomaly =
-            2 *
-            Math.atan2(
-              Math.sin(nextEccentricAnomaly / 2) * Math.sqrt(1 + eccentricity),
-              Math.cos(nextEccentricAnomaly / 2) * Math.sqrt(1 - eccentricity)
-            );
-          const nextDistance =
-            semiMajorAxis * (1 - eccentricity * Math.cos(nextEccentricAnomaly));
-
-          const nextFramePosition = scale(
-            { x: Math.cos(nextTrueAnomaly), y: Math.sin(nextTrueAnomaly) },
-            nextDistance
-          );
-          const nextFrameVelocity = scale(
-            {
-              x: Math.sin(nextEccentricAnomaly) * -1,
-              y:
-                Math.cos(nextEccentricAnomaly) *
-                Math.sqrt(1 - eccentricity ** 2),
-            },
-            Math.sqrt(standardGravitationalParameter * semiMajorAxis) /
-              nextDistance
-          );
-          const frameAngle = angle(eccentricityVector, { x: 1, y: 0 });
-
-          const nextRelativePosition = rotate(nextFramePosition, -frameAngle);
-          const nextVelocity = rotate(nextFrameVelocity, -frameAngle);
-
-          if (
-            tick % LOG_INTERVAL ===
-            0
-            // ||
-            // (speed > 100 && tick % 50 === 0) ||
-            // (speed > 200 && tick % 5 === 0)
-          ) {
-            console.table({
-              tick,
-              // posn,
-              // velo,
-              // speed,
-              // orbitalSpeed,
-              // standardGravitationalParameter,
-              distance,
-              nextDistance,
-              // specificOrbitalEnergy,
-              // specificAngularMomentum,
-              // eccentricity,
-              // semiMajorAxis,
-              // periapsis,
-              // apoapsis,
-              // meanMotion,
-              // orbitalPeriod,
-              // eccentricityVector,
-              // eccentricityVectorLength,
-              relativePosition,
-              nextRelativePosition,
-              velo,
-              nextVelocity,
-              // relativEmptyFocusPosition,
-              // constant,
-              trueAnomaly,
-              nextTrueAnomaly,
-              meanAnomaly,
-              // meanAnomaly2,
-              nextMeanAnomaly,
-              nextFramePosition,
-              nextFrameVelocity,
-              // eccentricAnomaly2,
-              frameAngle,
-              // rdotv,
-            });
-          }
-        }
-
-        // 2_996_703_626_011_387
-
-        // 3 * 10 ** 15
-
         return rescale(relativePosition, -effectiveGravity);
       };
 
-      const getAccel = (p: Vector, log: boolean = false) =>
-        add(thrust, getGravity(p, log));
+      const getAccel = (p: Vector) => add(thrust, getGravity(p));
 
-      const eulerMethod = (p: Vector) => getAccel(p, true);
+      const notEulerMethod = getAccel;
 
       const midpointMethod = (p: Vector) => {
         const k1 = getAccel(p);
@@ -455,56 +464,117 @@ export const level1Simulation = ({
         // };
       };
 
-      const e = eulerMethod(posn);
+      const eulersAccel = notEulerMethod(posn);
       const m = midpointMethod(posn);
       // const r = ralstonMethod({ px: posnx, py: posny });
-      const rk4 = rk4Method(posn);
+      const { a: rk4EffectiveAccel, v: rk4EffectiveVelo } = rk4Method(posn);
 
       ppvelo = pvelo;
       pvelo = velo;
+
+      // ok wtf is going on here
       // const evelo = add(velo, scale(e, 1 / TICK_PER_SECOND));
       // velo = add(velo, scale(rk4.a, 1 / TICK_PER_SECOND));
       // posn = add(posn, scale(evelo, 1 / TICK_PER_SECOND));
-      velo = add(velo, scale(e, 1 / TICK_PER_SECOND));
-      posn = add(posn, scale(velo, 1 / TICK_PER_SECOND));
-      const rp = sub(planetPosn, posn);
-      const d = length(rp);
-      const theta = (Math.atan2(rp.y, rp.x) * 180) / Math.PI;
 
-      if (
-        ppvelo !== null &&
-        pvelo !== null &&
-        ((length(velo) > length(pvelo) && length(pvelo) < length(ppvelo)) ||
-          (length(velo) < length(pvelo) && length(pvelo) > length(ppvelo)))
-      ) {
+      const rk4NextVelo = add(
+        velo,
+        scale(rk4EffectiveAccel, 1 / TICK_PER_SECOND)
+      );
+      const rk4NextPosn = add(
+        posn,
+        scale(rk4EffectiveVelo, 1 / TICK_PER_SECOND)
+      );
+
+      const eulersNextVelo = add(velo, scale(eulersAccel, 1 / TICK_PER_SECOND));
+      const eulersNextPosn = add(
+        posn,
+        scale(eulersNextVelo, 1 / TICK_PER_SECOND)
+      );
+
+      const { nextPosition, nextVelocity } = calculateStepWithEllipticalOrbit({
+        p: posn,
+        planetGravity,
+        planetPosn,
+        planetRadius,
+        tick,
+        velo,
+      });
+      const eulersPosnError = sub(nextPosition, eulersNextPosn);
+      const eulersVeloError = sub(nextVelocity, eulersNextVelo);
+
+      const rk4PosnError = sub(nextPosition, rk4NextPosn);
+      const rk4VeloError = sub(nextVelocity, rk4NextVelo);
+
+      if (tick % 100 === 0) {
+        console.log(tick);
         console.table({
-          tick,
-          d,
-          theta,
-          posn,
           velo,
-          pvelo,
-          ppvelo,
-          e,
-          m,
+          veloAngle:
+            (Math.sign(velo.y) * (angle(velo, { x: 1, y: 0 }) * 180)) / Math.PI,
+          nextVelocity,
+          eulersNextVelo,
+          eulersVeloError,
+          eulersVeloErrorAngle:
+            (Math.sign(eulersVeloError.y) *
+              (angle(eulersVeloError, { x: 1, y: 0 }) * 180)) /
+            Math.PI,
+          eulersAccel,
+          rk4NextVelo,
+          rk4VeloError,
+          rk4VeloErrorAngle:
+            (Math.sign(rk4VeloError.y) *
+              (angle(rk4VeloError, { x: 1, y: 0 }) * 180)) /
+            Math.PI,
+          spacer: "---------",
+          posn,
+          nextPosition,
+          eulersNextPosn,
+          eulersPosnError,
+          eulersPosnErrorAngle:
+            (Math.sign(eulersPosnError.y) *
+              (angle(eulersPosnError, { x: 1, y: 0 }) * 180)) /
+            Math.PI,
+          rk4NextPosn,
+          rk4PosnError,
+          rk4PosnErrorAngle:
+            (Math.sign(rk4PosnError.y) *
+              (angle(rk4PosnError, { x: 1, y: 0 }) * 180)) /
+            Math.PI,
+          // m,
           // r,
-          rk4a: rk4.a,
-          rk4v: rk4.v,
+          // rk4a: rk4.a,
+          // rk4v: rk4.v,
         });
       }
 
-      if (tick % 100 === 0) {
-        // console.table({
-        //   tick,
-        //   posn,
-        //   velo,
-        //   e,
-        //   m,
-        //   // r,
-        //   rk4a: rk4.a,
-        //   rk4v: rk4.v,
-        // });
-      }
+      posn = nextPosition;
+      velo = nextVelocity;
+
+      // posn = eulersNextPosn;
+      // velo = eulersNextVelo;
+
+      // posn = rk4NextPosn;
+      // velo = rk4NextVelo;
+
+      // if (
+      //   ppvelo !== null &&
+      //   pvelo !== null &&
+      //   ((length(velo) > length(pvelo) && length(pvelo) < length(ppvelo)) ||
+      //     (length(velo) < length(pvelo) && length(pvelo) > length(ppvelo)))
+      // ) {
+      //   console.table({
+      //     tick,
+      //     posn,
+      //     velo,
+      //     pvelo,
+      //     ppvelo,
+      //     e: eulersAccel,
+      //     m,
+      //     // rk4a: rk4Accel.a,
+      //     // rk4v: rk4Accel.v,
+      //   });
+      // }
     },
     checkForResult: ({ tick }) => {
       if (tick >= TIMEOUT_TICKS) {
